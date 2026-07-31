@@ -1,0 +1,76 @@
+{
+  "indexes": [
+    {
+      "comment": "Admin verification queue: pending submissions across all participants, oldest first.",
+      "collectionGroup": "days",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "adminVerificationStatus", "order": "ASCENDING" },
+        { "fieldPath": "activityDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "comment": "Period leaderboards: sum points from snapshots within a date window.",
+      "collectionGroup": "snapshots",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "activityDate", "order": "ASCENDING" },
+        { "fieldPath": "participantId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "comment": "Provider's upcoming appointments.",
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "providerId", "order": "ASCENDING" },
+        { "fieldPath": "scheduledAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "comment": "Participant's own appointment history.",
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "participantId", "order": "ASCENDING" },
+        { "fieldPath": "scheduledAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "comment": "Due appointment reminders.",
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "scheduledAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "comment": "Duplicate photo detection by content hash.",
+      "collectionGroup": "submissions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "imageHash", "order": "ASCENDING" },
+        { "fieldPath": "capturedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "comment": "City / distributor grouped rankings from participants.",
+      "collectionGroup": "participants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "city", "order": "ASCENDING" },
+        { "fieldPath": "totalPoints", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "participants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "distributorName", "order": "ASCENDING" },
+        { "fieldPath": "totalPoints", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

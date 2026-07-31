@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// Dayjoy Fit90 — Cloud Storage security.
+//
+// Photos are highly personal. Body/progress and medical images are restricted
+// to the participant + medical staff (doctor/admin). Coaches can see activity
+// proofs but NOT progress or medical images.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() { return request.auth != null; }
+    function role() { return isSignedIn() ? request.auth.token.role : ''; }
+    function isAdmin() { return role() == 'admin'; }
+    function isStaff() { return role() in ['admin', 'coach', 'doctor']; }
+    function isMedicalStaff() { return role() in ['admin', 'doctor']; }
+    function isSelf(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function validImage() {
+      return request.resource.size < 8 * 1024 * 1024 &&
+             request.resource.contentType.matches('image/.*');
+    }
+
+    // Daily activity proofs (yoga, nutrition, fitness, step screenshots).
+    match /participants/{uid}/activities/{allPaths=**} {
+      allow read: if isSelf(uid) || isStaff();
+      allow write: if isSelf(uid) && validImage();
+    }
+
+    // Weekly progress body photos — sensitive: self + medical staff only.
+    match /participants/{uid}/progress/{allPaths=**} {
+      allow read: if isSelf(uid) || isMedicalStaff();
+      allow write: if isSelf(uid) && validImage();
+    }
+
+    // Medical / consultation uploads — self + doctor + admin.
+    match /participants/{uid}/medical/{allPaths=**} {
+      allow read: if isSelf(uid) || isMedicalStaff();
+      allow write: if (isSelf(uid) || isMedicalStaff()) && validImage();
+    }
+
+    // Profile photos.
+    match /participants/{uid}/profile/{allPaths=**} {
+      allow read: if isSelf(uid) || isStaff();
+      allow write: if isSelf(uid) && validImage();
+    }
+
+    // Admin-generated exports (CSV/PDF) — admin only.
+    match /exports/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // Everything else denied.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

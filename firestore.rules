@@ -1,0 +1,168 @@
+rules_version = '2';
+
+// Dayjoy Fit90 — role-based Firestore security.
+//
+// Roles live in Firebase Auth custom claims (request.auth.token.role), set by
+// the admin-only `setUserRole` Cloud Function. Cloud Functions use the Admin
+// SDK and BYPASS these rules — so anything that must be server-authoritative
+// (points, streaks, leaderboards, reports, verification) is simply denied to
+// clients here and written only by functions.
+//
+// Privacy rule of thumb enforced below:
+//   • Medical history, doctor notes, consultations → self + doctor + admin ONLY.
+//   • Coaches never see medical data. Distributors have no medical access.
+//   • Points/streak/verification/leaderboards are never client-writable.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- helpers ----------------------------------------------------------
+    function isSignedIn() { return request.auth != null; }
+    function role() { return isSignedIn() ? request.auth.token.role : ''; }
+    function isAdmin() { return role() == 'admin'; }
+    function isCoach() { return role() == 'coach'; }
+    function isDoctor() { return role() == 'doctor'; }
+    function isStaff() { return isAdmin() || isCoach() || isDoctor(); }
+    function isMedicalStaff() { return isAdmin() || isDoctor(); }
+    function isSelf(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function unchanged(field) {
+      return request.resource.data[field] == resource.data[field];
+    }
+
+    // ---- public-ish config & content -------------------------------------
+    match /config/{doc} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /quotes/{doc} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ---- user directory (role lives in custom claims; mirrored here) ------
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isStaff();
+      // Self-signup is always a participant; role escalation is admin-only.
+      allow create: if isSelf(uid) && request.resource.data.role == 'participant';
+      allow update: if isAdmin() || (isSelf(uid) && unchanged('role'));
+      allow delete: if isAdmin();
+
+      // Staff/user in-app notification inbox.
+      match /notifications/{itemId} {
+        allow read: if isSelf(uid);
+        allow update: if isSelf(uid) && request.resource.data.diff(resource.data)
+                          .affectedKeys().hasOnly(['read']);
+        allow create, delete: if isAdmin();
+      }
+    }
+
+    // ---- participants -----------------------------------------------------
+    match /participants/{uid} {
+      allow read: if isSelf(uid) || isStaff();
+      allow create: if isSelf(uid);
+      // Clients may edit their profile but never tamper with score/streak/role.
+      allow update: if isAdmin() ||
+        (isSelf(uid) && unchanged('totalPoints') && unchanged('streak') &&
+         unchanged('lastCompletedDate') && unchanged('role'));
+      // Account self-deletion is allowed (GDPR); admin can also delete.
+      allow delete: if isSelf(uid) || isAdmin();
+
+      // Sensitive medical data — self + doctor + admin. NEVER coach.
+      match /medical/{docId} {
+        allow read, write: if isSelf(uid) || isMedicalStaff();
+      }
+
+      // Doctor consultation notes & diet plans.
+      match /consultations/{docId} {
+        allow read: if isSelf(uid) || isMedicalStaff();
+        allow create, update: if isMedicalStaff();
+        allow delete: if isAdmin();
+      }
+
+      // Daily checklist docs (id = yyyy-MM-dd). Client submits proofs & task
+      // completion; points are server-only.
+      match /days/{date} {
+        allow read: if isSelf(uid) || isStaff();
+        allow create: if isSelf(uid) && request.resource.data.pointsAwarded == 0;
+        allow update: if isAdmin() || (isSelf(uid) && unchanged('pointsAwarded'));
+        allow delete: if isAdmin();
+      }
+
+      // Flat submission log used for duplicate detection.
+      match /submissions/{subId} {
+        allow read: if isSelf(uid) || isStaff();
+        allow create: if isSelf(uid);
+        allow update, delete: if isAdmin();
+      }
+
+      // Health sync reads written by the client's device.
+      match /healthSyncs/{syncId} {
+        allow read: if isSelf(uid) || isStaff();
+        allow create, update: if isSelf(uid);
+        allow delete: if isSelf(uid) || isAdmin();
+      }
+
+      // Server-authoritative challenge scoring snapshots.
+      match /snapshots/{day} {
+        allow read: if isSelf(uid) || isStaff();
+        allow write: if isAdmin(); // functions only
+      }
+
+      // Weekly check-in (self-authored) + generated report (server only).
+      match /weeklyCheckins/{weekId} {
+        allow read: if isSelf(uid) || isStaff();
+        allow create, update: if isSelf(uid);
+        allow delete: if isAdmin();
+      }
+      match /weeklyReports/{weekId} {
+        allow read: if isSelf(uid) || isStaff();
+        allow write: if isAdmin(); // functions only
+      }
+
+      // Badges — awarded by functions.
+      match /badges/{badgeId} {
+        allow read: if isSelf(uid) || isStaff();
+        allow write: if isAdmin();
+      }
+
+      // In-app notifications — owner reads & marks read; functions write.
+      match /notifications/{itemId} {
+        allow read: if isSelf(uid);
+        allow update: if isSelf(uid) && request.resource.data.diff(resource.data)
+                          .affectedKeys().hasOnly(['read']);
+        allow create, delete: if isAdmin();
+      }
+    }
+
+    // ---- appointments (coach & doctor) -----------------------------------
+    match /appointments/{id} {
+      allow read: if isSignedIn() && (
+        isSelf(resource.data.participantId) ||
+        request.auth.uid == resource.data.providerId ||
+        isAdmin());
+      allow create: if isSignedIn() &&
+        isSelf(request.resource.data.participantId) &&
+        request.resource.data.status == 'requested';
+      // Provider manages their own appointments; admin manages all.
+      allow update: if isAdmin() ||
+        (isSignedIn() && request.auth.uid == resource.data.providerId);
+      allow delete: if isAdmin();
+    }
+
+    // ---- leaderboards (read-only to clients; functions write) ------------
+    match /leaderboards/{period} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+      match /{document=**} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+      }
+    }
+
+    // ---- audit logs (admin read; functions write) ------------------------
+    match /auditLogs/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+  }
+}

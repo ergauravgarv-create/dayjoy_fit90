@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- HealthKit read access. Enable the "HealthKit" capability in Xcode too. -->
+	<key>com.apple.developer.healthkit</key>
+	<true/>
+	<key>com.apple.developer.healthkit.access</key>
+	<array/>
+
+	<!-- Push notifications (FCM). Set to "production" for App Store builds. -->
+	<key>aps-environment</key>
+	<string>development</string>
+</dict>
+</plist>

@@ -1,0 +1,21 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    prefer_final_locals: true
+    avoid_print: true
+
+analyzer:
+  errors:
+    invalid_annotation_target: ignore
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    # Ready-to-enable Firebase implementations import firebase_* packages that
+    # are commented out in pubspec until you go live (see docs/). They are not
+    # part of the default (mock) build, so exclude them from analysis to keep
+    # `flutter analyze` green. Remove these lines when you enable Firebase.
+    - "lib/data/repositories/firebase/**"
+    - "lib/services/messaging/firebase_fcm_service.dart"

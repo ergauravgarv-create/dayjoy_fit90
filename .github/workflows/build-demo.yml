@@ -1,0 +1,83 @@
+name: Build Demo (APK + Web)
+
+# HOW TO RUN (no tools needed on your computer):
+#   1. Open your repository on github.com
+#   2. Click the "Actions" tab
+#   3. Choose "Build Demo (APK + Web)" on the left
+#   4. Click "Run workflow" -> "Run workflow"
+#   5. When it finishes (green tick), the APK is under "Artifacts", and the web
+#      demo is published to your GitHub Pages URL.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  android-apk:
+    name: Android demo APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Fill in any native scaffolding that isn't committed (Gradle wrapper,
+      # default icons, etc.) WITHOUT overwriting the project's committed config.
+      - name: Generate missing native scaffolding
+        run: flutter create --org com.dayjoy --project-name dayjoy_fit90 --platforms=android .
+
+      - run: flutter pub get
+      - run: flutter gen-l10n
+
+      - name: Build debug APK (demo)
+        run: flutter build apk --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dayjoy-fit90-demo-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+
+  web-demo:
+    name: Web demo (GitHub Pages)
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate missing native scaffolding
+        run: flutter create --org com.dayjoy --project-name dayjoy_fit90 --platforms=web .
+
+      - run: flutter pub get
+      - run: flutter gen-l10n
+
+      - name: Build web (base href matched to the repo name)
+        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
