@@ -21,17 +21,18 @@ class ContentHashDuplicateService implements DuplicateImageDetectionService {
 
   @override
   String computeHash(Uint8List bytes) {
-    // FNV-1a 64-bit. Deterministic and fast; good enough for exact-duplicate
-    // detection without pulling in the `crypto` package.
-    const int fnvPrime = 0x100000001b3;
-    // 64-bit offset basis.
-    int hash = 0xcbf29ce484222325;
-    const int mask = 0xFFFFFFFFFFFFFFFF;
+    // FNV-1a 32-bit. Deterministic and fast; good enough for exact-duplicate
+    // detection without pulling in the `crypto` package. 32-bit constants are
+    // used (instead of 64-bit) so the code also compiles for the web, where
+    // JavaScript cannot represent integers larger than 2^53 exactly.
+    const int fnvPrime = 0x01000193; // 16777619
+    const int mask = 0xFFFFFFFF; // 32-bit
+    int hash = 0x811c9dc5; // 32-bit offset basis (2166136261)
     for (final int b in bytes) {
       hash ^= b;
       hash = (hash * fnvPrime) & mask;
     }
-    return hash.toRadixString(16).padLeft(16, '0');
+    return hash.toRadixString(16).padLeft(8, '0');
   }
 
   @override
