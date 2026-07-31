@@ -62,10 +62,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true # enables gen-l10n from lib/l10n/*.arb (see l10n.yaml)
-  # Add asset folders as you create them:
-  # assets:
-  #   - assets/images/
-  #   - assets/lottie/
+  assets:
+    - assets/icon/logo.png
 
 # ---------------------------------------------------------------------------
 # App icon generation. Put your company logo at assets/icon/logo.png (a square

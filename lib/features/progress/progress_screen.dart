@@ -52,7 +52,7 @@ class ProgressScreen extends ConsumerWidget {
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: AppSpacing.md,
             crossAxisSpacing: AppSpacing.md,
-            childAspectRatio: 1.55,
+            childAspectRatio: 1.45,
             children: [
               StatTile(
                 icon: Icons.trending_down_rounded,

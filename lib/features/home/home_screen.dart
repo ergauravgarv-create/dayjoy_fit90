@@ -47,19 +47,15 @@ class HomeScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 100),
             children: [
-              // Greeting header
+              // Brand bar: app logo (left) + actions (right)
               Row(
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(l.homeGreeting, style: text.bodyMedium),
-                        Text(participant.name.split(' ').first,
-                            style: text.headlineSmall),
-                      ],
-                    ),
+                  Image.asset(
+                    'assets/icon/logo.png',
+                    height: 40,
+                    filterQuality: FilterQuality.high,
                   ),
+                  const Spacer(),
                   _NotificationBell(
                     unread: unread,
                     onTap: () => Navigator.of(context).push(
@@ -71,7 +67,7 @@ class HomeScreen extends ConsumerWidget {
                   _StreakPill(streak: streak),
                   const SizedBox(width: AppSpacing.sm),
                   CircleAvatar(
-                    radius: 24,
+                    radius: 22,
                     backgroundColor: AppColors.primary.withOpacity(0.15),
                     child: Text(
                       participant.name.characters.first,
@@ -80,6 +76,17 @@ class HomeScreen extends ConsumerWidget {
                           fontWeight: FontWeight.w700),
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+
+              // Greeting
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(l.homeGreeting, style: text.bodyMedium),
+                  Text(participant.name.split(' ').first,
+                      style: text.headlineSmall),
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
@@ -149,7 +156,7 @@ class HomeScreen extends ConsumerWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: AppSpacing.md,
                 crossAxisSpacing: AppSpacing.md,
-                childAspectRatio: 1.55,
+                childAspectRatio: 1.45,
                 children: [
                   StatTile(
                     icon: Icons.monitor_weight_rounded,

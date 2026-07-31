@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/env/app_config.dart';
 import '../data/repositories/admin_repository.dart';
+import '../data/repositories/appointment_booking_repository.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/badge_repository.dart';
 import '../data/repositories/checklist_repository.dart';
@@ -12,6 +13,7 @@ import '../data/repositories/staff_repository.dart';
 import '../data/repositories/weekly_checkin_repository.dart';
 import '../data/repositories/weekly_report_repository.dart';
 import '../data/repositories/mock/mock_admin_repository.dart';
+import '../data/repositories/mock/mock_appointment_booking_repository.dart';
 import '../data/repositories/mock/mock_auth_repository.dart';
 import '../data/repositories/mock/mock_badge_repository.dart';
 import '../data/repositories/mock/mock_checklist_repository.dart';
@@ -118,4 +120,12 @@ final weeklyReportRepositoryProvider = Provider<WeeklyReportRepository>((ref) {
     // return FirebaseWeeklyReportRepository();
   }
   return MockWeeklyReportRepository();
+});
+
+final appointmentBookingRepositoryProvider =
+    Provider<AppointmentBookingRepository>((ref) {
+  if (AppConfig.isFirebase) {
+    // return FirebaseAppointmentBookingRepository();
+  }
+  return MockAppointmentBookingRepository();
 });

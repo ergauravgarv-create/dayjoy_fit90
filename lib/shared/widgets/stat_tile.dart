@@ -22,9 +22,10 @@ class StatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
     return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(AppSpacing.sm),
@@ -34,10 +35,16 @@ class StatTile extends StatelessWidget {
             ),
             child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text(value, style: text.titleLarge),
+          const SizedBox(height: AppSpacing.sm),
+          Text(value,
+              style: text.titleLarge,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
           const SizedBox(height: 2),
-          Text(label, style: text.bodySmall),
+          Text(label,
+              style: text.bodySmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
         ],
       ),
     );

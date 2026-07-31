@@ -94,7 +94,7 @@ class _OverviewTab extends ConsumerWidget {
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: AppSpacing.md,
             crossAxisSpacing: AppSpacing.md,
-            childAspectRatio: 1.5,
+            childAspectRatio: 1.4,
             children: [
               StatTile(
                 icon: Icons.groups_rounded,

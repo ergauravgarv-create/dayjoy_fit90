@@ -23,17 +23,16 @@ abstract final class AppTheme {
       error: AppColors.error,
     );
 
-    final Color background =
-        isDark ? AppColors.backgroundDark : AppColors.background;
-
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: background,
+      // Transparent so the wellness AppBackground (see app.dart) shows through
+      // on every screen.
+      scaffoldBackgroundColor: Colors.transparent,
       textTheme: AppTypography.textTheme(brightness),
       splashFactory: InkSparkle.splashFactory,
       appBarTheme: AppBarTheme(
-        backgroundColor: background,
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,

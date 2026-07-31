@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'l10n/gen/app_localizations.dart';
-import 'shared/widgets/demo_banner.dart';
+import 'shared/widgets/app_background.dart';
 import 'state/locale_provider.dart';
 
 /// Root widget. Themed, Material 3, light + dark, localized (en/hi/mr), driven
@@ -27,9 +27,9 @@ class DayjoyApp extends ConsumerWidget {
       locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      // Show the "Demo Data" indicator while running on sample data.
+      // Wellness backdrop behind every screen.
       builder: (context, child) =>
-          DemoModeOverlay(child: child ?? const SizedBox.shrink()),
+          AppBackground(child: child ?? const SizedBox.shrink()),
     );
   }
 }

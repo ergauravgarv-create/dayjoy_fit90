@@ -11,10 +11,13 @@ import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../state/locale_provider.dart';
 import '../../state/providers.dart';
+import '../../data/models/appointment.dart';
+import '../appointments/book_appointment_screen.dart';
 import '../badges/badges_gallery_screen.dart';
 import '../health/connect_health_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../registration/registration_screen.dart';
+import '../support/support_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -90,6 +93,12 @@ class ProfileScreen extends ConsumerWidget {
             color: AppColors.taskFitness,
             name: AppConstants.coachName,
             role: l.coachBookSession,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const BookAppointmentScreen(
+                    providerRole: ProviderKind.coach),
+              ),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           _TeamTile(
@@ -97,6 +106,12 @@ class ProfileScreen extends ConsumerWidget {
             color: AppColors.info,
             name: AppConstants.doctorName,
             role: l.doctorRequestConsult,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const BookAppointmentScreen(
+                    providerRole: ProviderKind.doctor),
+              ),
+            ),
           ),
           const SizedBox(height: AppSpacing.xl),
 
@@ -146,7 +161,11 @@ class ProfileScreen extends ConsumerWidget {
                 _NavRow(
                     icon: Icons.support_agent_rounded,
                     label: l.profileSupport,
-                    last: true),
+                    last: true,
+                    onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                              builder: (_) => const SupportScreen()),
+                        )),
               ],
             ),
           ),
@@ -234,17 +253,19 @@ class _TeamTile extends StatelessWidget {
       {required this.icon,
       required this.color,
       required this.name,
-      required this.role});
+      required this.role,
+      this.onTap});
   final IconData icon;
   final Color color;
   final String name;
   final String role;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
     return GlassCard(
-      onTap: () {},
+      onTap: onTap,
       child: Row(
         children: [
           CircleAvatar(
