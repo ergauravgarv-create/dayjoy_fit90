@@ -23,7 +23,7 @@ dependencies:
   # UI / Premium look
   google_fonts: ^6.2.1
   fl_chart: ^0.68.0
-  confetti: ^0.7.0
+  confetti: ^0.8.0
 
   # Utilities
   # `any` lets pub pick the intl version that flutter_localizations pins for
