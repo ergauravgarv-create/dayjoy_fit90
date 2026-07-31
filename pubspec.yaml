@@ -56,6 +56,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  # Turns your logo (assets/icon/logo.png) into the app icon at build time.
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -64,3 +66,20 @@ flutter:
   # assets:
   #   - assets/images/
   #   - assets/lottie/
+
+# ---------------------------------------------------------------------------
+# App icon generation. Put your company logo at assets/icon/logo.png (a square
+# PNG, ideally 1024x1024). The build regenerates the Android launcher icon from
+# it automatically. If the file is absent, the default icon is kept.
+# ---------------------------------------------------------------------------
+flutter_launcher_icons:
+  image_path: "assets/icon/logo.png"
+  android: true
+  min_sdk_android: 26
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/logo.png"
+  # iOS/web icons are generated later during those builds; add here when ready:
+  # ios: true
+  # web:
+  #   generated: true
+  #   image_path: "assets/icon/logo.png"

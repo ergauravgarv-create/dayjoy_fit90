@@ -36,6 +36,14 @@ jobs:
       - name: Generate localizations
         run: flutter gen-l10n
 
+      - name: Generate app icon from your logo (if provided)
+        run: |
+          if [ -f assets/icon/logo.png ]; then
+            dart run flutter_launcher_icons
+          else
+            echo "No assets/icon/logo.png yet — keeping the default icon."
+          fi
+
       - name: Configure release signing (if secrets provided)
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}

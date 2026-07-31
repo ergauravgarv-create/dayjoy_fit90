@@ -1,0 +1,17 @@
+👉 PUT YOUR COMPANY LOGO IN THIS FOLDER
+
+Steps:
+1. Prepare your logo as a PNG image.
+      • Square shape works best (for example 1024 x 1024 pixels).
+      • Leave a little empty space around the logo so the edges aren't
+        cut off by round phone-icon shapes.
+      • A transparent or white background looks cleanest.
+2. Rename the file to EXACTLY:   logo.png
+3. Copy it into this folder:
+      dayjoy_fit90 / assets / icon / logo.png
+4. In GitHub Desktop: Commit  ->  Push origin.
+5. On GitHub: Actions -> "Build Demo (APK + Web)" -> Run workflow.
+
+The new app you download will show your logo as the icon. 🎉
+
+(If you don't add a logo, the app simply keeps a default icon — nothing breaks.)

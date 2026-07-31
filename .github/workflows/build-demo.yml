@@ -41,6 +41,15 @@ jobs:
       - run: flutter pub get
       - run: flutter gen-l10n
 
+      - name: Generate app icon from your logo (if provided)
+        run: |
+          if [ -f assets/icon/logo.png ]; then
+            echo "Logo found — generating app icon."
+            dart run flutter_launcher_icons
+          else
+            echo "No assets/icon/logo.png yet — keeping the default icon."
+          fi
+
       - name: Build debug APK (demo)
         run: flutter build apk --debug
 
