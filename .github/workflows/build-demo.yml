@@ -30,6 +30,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.24.5
           cache: true
 
       # Fill in any native scaffolding that isn't committed (Gradle wrapper,
@@ -62,6 +63,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.24.5
           cache: true
 
       - name: Generate missing native scaffolding
