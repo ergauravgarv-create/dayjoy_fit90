@@ -55,7 +55,7 @@ jobs:
       - name: Build App Bundle
         run: flutter build appbundle --release
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: app-release-aab
           path: build/app/outputs/bundle/release/app-release.aab
