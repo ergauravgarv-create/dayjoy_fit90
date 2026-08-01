@@ -40,6 +40,35 @@ class _FoodSearchSheet extends StatefulWidget {
 
 class _FoodSearchSheetState extends State<_FoodSearchSheet> {
   String _query = '';
+  String _cat = 'All';
+
+  static const List<String> _catFilters = [
+    'All', 'Veg', 'Non-veg', 'Breakfast', 'Mains', 'Snacks', 'Sweets', 'Drinks',
+  ];
+
+  bool _passesCat(FoodItem f) {
+    final String c = f.category.toLowerCase();
+    switch (_cat) {
+      case 'Veg':
+        return f.isVeg;
+      case 'Non-veg':
+        return !f.isVeg;
+      case 'Breakfast':
+        return c.contains('breakfast');
+      case 'Mains':
+        return c.contains('lunch') ||
+            c.contains('dinner') ||
+            c.contains('main');
+      case 'Snacks':
+        return c.contains('snack') || c.contains('starter');
+      case 'Sweets':
+        return c.contains('dessert') || c.contains('sweet');
+      case 'Drinks':
+        return c.contains('beverage') || c.contains('drink');
+      default:
+        return true;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +77,7 @@ class _FoodSearchSheetState extends State<_FoodSearchSheet> {
     final String q = _query.trim().toLowerCase();
     final List<FoodItem> results = kIndianFoods
         .where((f) => widget.filter == null || widget.filter!(f))
+        .where(_passesCat)
         .where((f) => q.isEmpty || f.name.toLowerCase().contains(q))
         .toList();
 
@@ -66,6 +96,39 @@ class _FoodSearchSheetState extends State<_FoodSearchSheet> {
                   hintText: 'Search Indian foods…',
                   prefixIcon: Icon(Icons.search_rounded),
                 ),
+              ),
+            ),
+            SizedBox(
+              height: 40,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                itemCount: _catFilters.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (context, i) {
+                  final String label = _catFilters[i];
+                  final bool sel = _cat == label;
+                  return ChoiceChip(
+                    label: Text(label),
+                    selected: sel,
+                    labelStyle: TextStyle(
+                      color: sel ? Colors.white : AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    onSelected: (_) => setState(() => _cat = label),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xs),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('${results.length} foods',
+                    style: text.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary)),
               ),
             ),
             Expanded(
