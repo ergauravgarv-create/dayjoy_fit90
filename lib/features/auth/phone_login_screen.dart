@@ -31,7 +31,16 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
     super.dispose();
   }
 
+  bool get _valid => _phone.text.trim().length == 10;
+
   Future<void> _send() async {
+    if (!_valid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please enter a valid 10-digit mobile number.')),
+      );
+      return;
+    }
     setState(() => _sending = true);
     await ref
         .read(authControllerProvider.notifier)
@@ -70,8 +79,12 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
               keyboardType: TextInputType.phone,
               maxLength: 10,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 counterText: '',
+                errorText: (_phone.text.isNotEmpty && !_valid)
+                    ? 'Enter a 10-digit mobile number'
+                    : null,
                 prefixIcon: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 14),
                   child: Text('🇮🇳  +91',
@@ -89,7 +102,7 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
             ],
             const Spacer(),
             FilledButton(
-              onPressed: _sending ? null : _send,
+              onPressed: (_sending || !_valid) ? null : _send,
               child: _sending
                   ? const SizedBox(
                       width: 22,

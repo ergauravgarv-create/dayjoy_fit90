@@ -111,20 +111,31 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
     super.dispose();
   }
 
+  // Banner image aspect ratio (recommended source images are 1000 × 420 px).
+  static const double _bannerAspect = 1000 / 420;
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          height: 138,
-          child: PageView.builder(
-            controller: _controller,
-            itemCount: widget.banners.length,
-            onPageChanged: (i) => setState(() => _index = i),
-            itemBuilder: (context, i) => _BannerCard(banner: widget.banners[i]),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Size the window to the banner's own aspect ratio so the full image
+        // shows edge-to-edge (no cropping) and scales up on larger screens.
+        final double cardWidth = constraints.maxWidth - 4; // minus card margins
+        final double height =
+            (cardWidth / _bannerAspect).clamp(120.0, 240.0);
+        return Column(
+          children: [
+            SizedBox(
+              height: height,
+              child: PageView.builder(
+                controller: _controller,
+                itemCount: widget.banners.length,
+                onPageChanged: (i) => setState(() => _index = i),
+                itemBuilder: (context, i) =>
+                    _BannerCard(banner: widget.banners[i]),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -142,8 +153,10 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                 ),
               ),
           ],
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 }
