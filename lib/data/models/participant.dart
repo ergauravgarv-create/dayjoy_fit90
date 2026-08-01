@@ -62,6 +62,16 @@ class Participant {
     return currentWeightKg / (m * m);
   }
 
+  /// WHO BMI category: Underweight / Normal / Overweight / Obese.
+  String get bmiCategory {
+    final double b = bmi;
+    if (b <= 0) return 'Unknown';
+    if (b < 18.5) return 'Underweight';
+    if (b < 25) return 'Normal';
+    if (b < 30) return 'Overweight';
+    return 'Obese';
+  }
+
   double get weightLostKg =>
       (startWeightKg - currentWeightKg).clamp(0.0, 999.0);
 

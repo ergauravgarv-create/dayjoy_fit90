@@ -169,7 +169,7 @@ class _SummaryCard extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppColors.surface,
       builder: (ctx) {
         final TextTheme t = Theme.of(ctx).textTheme;
         return Padding(

@@ -15,11 +15,20 @@ import '../../shared/widgets/weight_line_chart.dart';
 import '../../state/engagement_providers.dart';
 import '../../state/meal_provider.dart';
 import '../../state/providers.dart';
+import '../health/bmi_report_screen.dart';
 import '../meals/meal_tracker_screen.dart';
 import '../meals/my_diet_plan_screen.dart';
 import '../notifications/notifications_screen.dart';
 import 'home_banner_carousel.dart';
 import 'home_water_card.dart';
+
+Color _bmiColor(String category) => switch (category) {
+      'Underweight' => AppColors.info,
+      'Normal' => AppColors.success,
+      'Overweight' => AppColors.orange,
+      'Obese' => AppColors.error,
+      _ => AppColors.textSecondary,
+    };
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -188,6 +197,39 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
+
+              // BMI report card
+              GlassCard(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const BmiReportScreen()),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: _bmiColor(participant.bmiCategory)
+                          .withOpacity(0.15),
+                      child: Icon(Icons.monitor_heart_rounded,
+                          color: _bmiColor(participant.bmiCategory)),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Your BMI  ${participant.bmi.toStringAsFixed(1)}',
+                              style: text.titleMedium),
+                          Text(
+                              '${participant.bmiCategory} · tap for your health report',
+                              style: text.bodySmall),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
 
               // Meal tracker CTA
               GlassCard(

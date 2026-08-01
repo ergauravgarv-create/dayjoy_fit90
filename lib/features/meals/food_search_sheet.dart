@@ -18,7 +18,7 @@ Future<void> showFoodSearch(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+    backgroundColor: AppColors.surface,
     builder: (_) =>
         _FoodSearchSheet(onPick: onPick, filter: filter, snackbar: snackbar),
   );
