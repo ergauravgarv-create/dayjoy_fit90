@@ -17,7 +17,6 @@ import '../../data/models/participant.dart';
 import '../../state/providers.dart';
 import '../../state/report_providers.dart';
 import '../../state/water_provider.dart';
-import 'transformation_stories.dart';
 
 class ProgressScreen extends ConsumerWidget {
   const ProgressScreen({super.key});
@@ -140,18 +139,6 @@ class ProgressScreen extends ConsumerWidget {
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-
-          // Community success stories (inspiration only — see disclaimer).
-          const SectionHeader(title: 'Get inspired'),
-          const SizedBox(height: AppSpacing.md),
-          const TransformationStoriesCarousel(),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Pictures and stories are for inspiration only and may not reflect '
-            'individual results.',
-            style: text.bodySmall?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.xl),
 

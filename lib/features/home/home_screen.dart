@@ -20,7 +20,6 @@ import '../meals/meal_tracker_screen.dart';
 import '../meals/my_diet_plan_screen.dart';
 import '../notifications/notifications_screen.dart';
 import 'home_banner_carousel.dart';
-import 'home_water_card.dart';
 
 Color _bmiColor(String category) => switch (category) {
       'Underweight' => AppColors.info,
@@ -259,10 +258,6 @@ class HomeScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Water intake tracker
-              const HomeWaterCard(),
               const SizedBox(height: AppSpacing.md),
 
               // Diet plan CTA (doctor-approved)

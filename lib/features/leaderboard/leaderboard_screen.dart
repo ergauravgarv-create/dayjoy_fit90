@@ -7,6 +7,7 @@ import '../../data/models/leaderboard_entry.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../state/providers.dart';
+import '../onboarding/transformation_intro_screen.dart';
 import '../rewards/rewards_screen.dart';
 
 class LeaderboardScreen extends ConsumerStatefulWidget {
@@ -48,17 +49,18 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
         children: [
           const SizedBox(height: AppSpacing.md),
 
-          // Scope: All India / My City
+          // Scope: All India / My City / Get inspired
           Padding(
             padding: AppSpacing.page,
-            child: Row(
+            child: Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
               children: [
                 _ScopeChip(
                   label: 'All India',
                   selected: _scope == 0,
                   onTap: () => setState(() => _scope = 0),
                 ),
-                const SizedBox(width: AppSpacing.sm),
                 if (myCity != null)
                   _ScopeChip(
                     label: myCity,
@@ -66,20 +68,26 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                     selected: _scope == 1,
                     onTap: () => setState(() => _scope = 1),
                   ),
+                _ScopeChip(
+                  label: 'Get inspired',
+                  icon: Icons.auto_awesome_rounded,
+                  selected: _scope == 2,
+                  onTap: () => setState(() => _scope = 2),
+                ),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.md),
 
-          if (entries.isEmpty)
+          if (_scope != 2 && entries.isEmpty)
             Padding(
               padding: const EdgeInsets.all(AppSpacing.xl),
               child: Text('No one here yet in $myCity.',
                   style: text.bodyMedium),
             ),
 
-          // Podium (top 3)
-          if (entries.length >= 3)
+          // Podium (top 3) — ranking scopes only
+          if (_scope != 2 && entries.length >= 3)
             Padding(
               padding: AppSpacing.page,
               child: Row(
@@ -96,12 +104,15 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
             ),
           const SizedBox(height: AppSpacing.lg),
 
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg, 0, AppSpacing.lg, 100),
-              itemCount: entries.length,
-              itemBuilder: (context, i) {
+          if (_scope == 2)
+            Expanded(child: _inspiredList(context))
+          else
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg, 0, AppSpacing.lg, 100),
+                itemCount: entries.length,
+                itemBuilder: (context, i) {
                 final LeaderboardEntry e = entries[i];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -165,6 +176,48 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// "Get inspired": the same transformation-story banners shown at signup.
+  Widget _inspiredList(BuildContext context) {
+    final TextTheme text = Theme.of(context).textTheme;
+    return ListView(
+      padding:
+          const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 100),
+      children: [
+        Text('Real transformations from our members',
+            style: text.titleMedium),
+        const SizedBox(height: AppSpacing.md),
+        for (final path in kTransformationIntroBanners)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: ClipRRect(
+              borderRadius: AppRadius.card,
+              child: Image.asset(
+                path,
+                fit: BoxFit.fitWidth,
+                width: double.infinity,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 160,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceMuted,
+                    borderRadius: AppRadius.card,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text('Transformation story', style: text.bodyMedium),
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Pictures are for inspiration only and may not reflect individual '
+          'results.',
+          style: text.bodySmall?.copyWith(color: AppColors.textSecondary),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 }
