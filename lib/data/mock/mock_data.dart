@@ -86,6 +86,14 @@ abstract final class MockData {
       streak: 11,
       weightLostKg: 5.2,
     ),
+    LeaderboardEntry(
+      rank: 7,
+      name: 'Kabir Joshi',
+      city: 'Pune',
+      points: 1420,
+      streak: 8,
+      weightLostKg: 4.8,
+    ),
   ];
 
   // ------------------------------------------------------------------------

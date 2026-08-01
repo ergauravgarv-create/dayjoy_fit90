@@ -24,7 +24,7 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     Future.delayed(const Duration(milliseconds: 2200), () {
-      if (mounted) context.go(Routes.onboarding);
+      if (mounted) context.go(Routes.language);
     });
   }
 

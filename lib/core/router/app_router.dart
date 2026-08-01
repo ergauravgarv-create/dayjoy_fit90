@@ -8,7 +8,9 @@ import '../../features/checklist/checklist_screen.dart';
 import '../../features/registration/registration_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/leaderboard/leaderboard_screen.dart';
+import '../../features/onboarding/language_select_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
+import '../../features/onboarding/transformation_intro_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/progress/progress_screen.dart';
 import '../../features/shell/app_shell.dart';
@@ -21,10 +23,12 @@ import '../constants/app_constants.dart';
 /// Route path constants — reference these instead of raw strings.
 abstract final class Routes {
   static const String splash = '/';
+  static const String language = '/language';
   static const String onboarding = '/onboarding';
   static const String login = '/login';
   static const String otp = '/otp';
   static const String register = '/register';
+  static const String transformationIntro = '/transformation-intro';
   static const String weeklyCheckin = '/weekly-checkin';
 
   static const String home = '/home';
@@ -55,6 +59,10 @@ final GoRouter appRouter = GoRouter(
       builder: (_, __) => const SplashScreen(),
     ),
     GoRoute(
+      path: Routes.language,
+      builder: (_, __) => const LanguageSelectScreen(),
+    ),
+    GoRoute(
       path: Routes.onboarding,
       builder: (_, __) => const OnboardingScreen(),
     ),
@@ -72,6 +80,9 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
         path: Routes.register,
         builder: (_, __) => const RegistrationScreen()),
+    GoRoute(
+        path: Routes.transformationIntro,
+        builder: (_, __) => const TransformationIntroScreen()),
     GoRoute(
         path: Routes.weeklyCheckin,
         builder: (_, __) => const WeeklyCheckInScreen()),

@@ -37,13 +37,35 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   final _sponsor = TextEditingController();
   final _health = TextEditingController();
   final _medical = TextEditingController();
+  // Height in feet + inches (used when the unit toggle is set to ft/in).
+  final _feet = TextEditingController();
+  final _inches = TextEditingController();
 
   String _gender = 'Male';
   String _food = 'Vegetarian';
   String _activity = 'Moderate';
+  String _heightUnit = 'cm'; // 'cm' or 'ftin'
+  final Set<String> _conditions = <String>{};
   bool _consent = false;
   bool _saving = false;
   String? _photoUrl;
+
+  /// Medical conditions offered as a multi-select. "None" is handled specially:
+  /// picking it clears the rest, and picking any condition clears "None".
+  static const List<String> _medicalOptions = [
+    'Diabetes',
+    'Prediabetic',
+    'Cholesterol',
+    'Hypertension',
+    'PCOS',
+    'Thyroid',
+    'Physical injury',
+    'Stress / Anxiety',
+    'Sleep issue',
+    'Depression',
+    'Anger issue',
+    'Relationship stress',
+  ];
 
   bool get _isEdit => widget.existing != null;
 
@@ -63,6 +85,13 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       _distributor.text = p.distributorName ?? '';
       _sponsor.text = p.sponsorId ?? '';
       _health.text = p.healthConditions ?? '';
+      // Restore any previously chosen medical conditions into the multi-select.
+      if (p.healthConditions != null && p.healthConditions!.trim().isNotEmpty) {
+        for (final part in p.healthConditions!.split(',')) {
+          final t = part.trim();
+          if (_medicalOptions.contains(t)) _conditions.add(t);
+        }
+      }
       _gender = p.gender;
       _food = p.foodPreference;
       _activity = p.physicalActivityLevel ?? 'Moderate';
@@ -75,18 +104,26 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   void dispose() {
     for (final c in [
       _name, _email, _age, _height, _startWeight, _target, _waist,
-      _city, _distributor, _sponsor, _health, _medical,
+      _city, _distributor, _sponsor, _health, _medical, _feet, _inches,
     ]) {
       c.dispose();
     }
     super.dispose();
   }
 
+  /// Height in centimetres, converted from whichever unit is active.
+  double _computedHeightCm() {
+    if (_heightUnit == 'cm') return double.tryParse(_height.text) ?? 0;
+    final ft = double.tryParse(_feet.text) ?? 0;
+    final inch = double.tryParse(_inches.text) ?? 0;
+    return (ft * 30.48) + (inch * 2.54);
+  }
+
   String? _validate() {
     final l = AppLocalizations.of(context);
     if (_name.text.trim().isEmpty) return l.valName;
     if ((int.tryParse(_age.text) ?? 0) <= 0) return l.valAge;
-    if ((double.tryParse(_height.text) ?? 0) <= 0) return l.valHeight;
+    if (_computedHeightCm() <= 0) return l.valHeight;
     if ((double.tryParse(_startWeight.text) ?? 0) <= 0) return l.valStartWeight;
     if ((double.tryParse(_target.text) ?? 0) <= 0) return l.valTarget;
     if (_city.text.trim().isEmpty) return l.valCity;
@@ -119,7 +156,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       photoUrl: _photoUrl,
       age: int.tryParse(_age.text) ?? 0,
       gender: _gender,
-      heightCm: double.tryParse(_height.text) ?? 0,
+      heightCm: _computedHeightCm(),
       startWeightKg: widget.existing?.startWeightKg ?? start,
       currentWeightKg: widget.existing?.currentWeightKg ?? start,
       targetWeightKg: double.tryParse(_target.text) ?? 0,
@@ -133,7 +170,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       streak: widget.existing?.streak ?? 0,
       totalPoints: widget.existing?.totalPoints ?? 0,
       physicalActivityLevel: _activity,
-      healthConditions: clean(_health),
+      healthConditions:
+          _conditions.isEmpty ? null : (_conditions.toList()..sort()).join(', '),
     );
 
     await ref.read(participantRepositoryProvider).upsert(participant);
@@ -146,7 +184,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       Navigator.of(context).pop();
     } else {
       ref.read(authControllerProvider.notifier).markRegistered();
-      context.go(Routes.home);
+      context.go(Routes.transformationIntro);
     }
   }
 
@@ -221,15 +259,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
 
           const SizedBox(height: AppSpacing.lg),
           _section(l.secBodyGoals),
-          Row(
-            children: [
-              Expanded(child: _field(l.fieldHeightCm, _height,
-                  keyboard: TextInputType.number)),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(child: _field(l.fieldWaistCm, _waist,
-                  keyboard: TextInputType.number)),
-            ],
-          ),
+          _heightInput(l),
+          _field(l.fieldWaistCm, _waist, keyboard: TextInputType.number),
           Row(
             children: [
               Expanded(child: _field(l.fieldStartWeight, _startWeight,
@@ -263,7 +294,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           _field(l.fieldCity, _city),
           _field(l.fieldDistributor, _distributor),
           _field(l.fieldSponsor, _sponsor),
-          _field(l.fieldHealthConditions, _health, maxLines: 2),
+          _medicalMultiSelect(l),
           _field(l.fieldMedicalHistory, _medical, maxLines: 2),
 
           const SizedBox(height: AppSpacing.md),
@@ -319,6 +350,105 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
             ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))]
             : null,
         decoration: InputDecoration(labelText: label),
+      ),
+    );
+  }
+
+  /// Height entry with a cm / ft-in unit toggle.
+  Widget _heightInput(AppLocalizations l) {
+    final text = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Height', style: text.bodySmall),
+            const Spacer(),
+            _unitChip('cm', 'cm'),
+            const SizedBox(width: 6),
+            _unitChip('ft / in', 'ftin'),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (_heightUnit == 'cm')
+          _field(l.fieldHeightCm, _height, keyboard: TextInputType.number)
+        else
+          Row(
+            children: [
+              Expanded(
+                  child: _field('Feet', _feet,
+                      keyboard: TextInputType.number)),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                  child: _field('Inches', _inches,
+                      keyboard: TextInputType.number)),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _unitChip(String label, String value) {
+    final bool selected = _heightUnit == value;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : AppColors.textSecondary,
+        fontWeight: FontWeight.w600,
+      ),
+      onSelected: (_) => setState(() => _heightUnit = value),
+    );
+  }
+
+  /// Multi-select medical conditions. "None" clears everything; picking any
+  /// condition clears "None".
+  Widget _medicalMultiSelect(AppLocalizations l) {
+    final text = Theme.of(context).textTheme;
+    final bool none = _conditions.isEmpty;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.fieldHealthConditions, style: text.bodySmall),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            children: [
+              FilterChip(
+                label: const Text('None'),
+                selected: none,
+                showCheckmark: false,
+                labelStyle: TextStyle(
+                  color: none ? Colors.white : AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+                onSelected: (_) => setState(_conditions.clear),
+              ),
+              for (final o in _medicalOptions)
+                FilterChip(
+                  label: Text(o),
+                  selected: _conditions.contains(o),
+                  checkmarkColor: Colors.white,
+                  labelStyle: TextStyle(
+                    color: _conditions.contains(o)
+                        ? Colors.white
+                        : AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  onSelected: (sel) => setState(() {
+                    if (sel) {
+                      _conditions.add(o);
+                    } else {
+                      _conditions.remove(o);
+                    }
+                  }),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

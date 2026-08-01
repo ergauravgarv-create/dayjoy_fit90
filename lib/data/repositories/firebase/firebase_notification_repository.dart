@@ -39,4 +39,18 @@ class FirebaseNotificationRepository implements NotificationRepository {
     }
     await batch.commit();
   }
+
+  @override
+  Future<void> addBroadcast(
+      {required String title, required String body}) async {
+    // Write to a top-level `broadcasts` collection; a Cloud Function fans it out
+    // to each participant's notifications subcollection (and push via FCM).
+    await _fs.collection('broadcasts').add({
+      'title': title,
+      'body': body,
+      'type': 'broadcast',
+      'read': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
 }

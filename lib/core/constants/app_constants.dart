@@ -7,9 +7,13 @@ abstract final class AppConstants {
   static const int dailyStepGoal = 10000;
   static const int weeklyCheckInInterval = 7;
 
-  // Points per task (5 tasks x 20 = 100/day)
-  static const int pointsPerTask = 20;
+  // Points: 5 activity tasks x 16 + water 20 = 100/day.
+  static const int pointsPerTask = 16;
+  static const int waterTaskPoints = 20;
   static const int dailyPointsTotal = 100;
+
+  /// Glasses of water (250 ml each) required to earn the daily water points.
+  static const int waterTaskGlasses = 12;
 
   static const String coachName = 'Ms. Sonali';
   static const String doctorName = 'Dr. Prachita';

@@ -10,6 +10,7 @@ import '../data/models/leaderboard_entry.dart';
 import '../data/models/participant.dart';
 import '../data/repositories/auth_repository.dart';
 import 'repository_providers.dart';
+import 'water_provider.dart';
 
 /// -------------------------------------------------------------------------
 /// App state. The provider *surface* here is identical for mock and Firebase
@@ -251,11 +252,26 @@ class LeaderboardNotifier extends Notifier<List<LeaderboardEntry>> {
 final streakProvider =
     Provider<int>((ref) => ref.watch(participantProvider)?.streak ?? 0);
 
-final completionProvider =
-    Provider<double>((ref) => ref.watch(checklistProvider).completionPercent);
+/// Whether today's water goal (≥ 12 glasses) has been met — worth its own
+/// daily points and counted as one of the day's tasks.
+final waterTaskDoneProvider = Provider<bool>(
+    (ref) => ref.watch(waterProvider) >= AppConstants.waterTaskGlasses);
 
-final todayPointsProvider =
-    Provider<int>((ref) => ref.watch(checklistProvider).pointsEarned);
+/// Day completion (0..1) across the 5 activity tasks **plus** the water task.
+final completionProvider = Provider<double>((ref) {
+  final c = ref.watch(checklistProvider);
+  final waterDone = ref.watch(waterTaskDoneProvider) ? 1 : 0;
+  final total = c.tasks.length + 1; // + water
+  return total == 0 ? 0.0 : (c.completedCount + waterDone) / total;
+});
+
+/// Points earned today: activity tasks + the water task (caps at 100).
+final todayPointsProvider = Provider<int>((ref) {
+  final base = ref.watch(checklistProvider).pointsEarned;
+  final water =
+      ref.watch(waterTaskDoneProvider) ? AppConstants.waterTaskPoints : 0;
+  return base + water;
+});
 
 final weightSeriesProvider =
     Provider<List<double>>((ref) => MockData.weightSeries);

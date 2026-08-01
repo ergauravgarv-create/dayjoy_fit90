@@ -5,15 +5,17 @@ import 'package:flutter/material.dart';
 /// Premium wellness — Green + White. Keep every color reference in the app
 /// pointing here so re-branding is a single-file change.
 abstract final class AppColors {
-  // Brand
+  // Brand — green + DayJoy orange
   static const Color primary = Color(0xFF0D8B6F); // deep wellness green
   static const Color secondary = Color(0xFF1FBF75); // vibrant green
-  static const Color accent = Color(0xFFFFB800); // gold — points, streaks
+  static const Color orange = Color(0xFFFA6E35); // DayJoy brand orange
+  static const Color orangeDark = Color(0xFFE85A22);
+  static const Color accent = orange; // points, streaks, energy
 
-  // Surfaces (light)
-  static const Color background = Color(0xFFF7FAF9);
+  // Surfaces (light) — clean, professional white
+  static const Color background = Color(0xFFF6F8FA);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceMuted = Color(0xFFEFF5F2);
+  static const Color surfaceMuted = Color(0xFFF0F3F4);
 
   // Surfaces (dark)
   static const Color backgroundDark = Color(0xFF0B1512);
@@ -46,12 +48,22 @@ abstract final class AppColors {
     end: Alignment.bottomRight,
   );
 
+  // Orange "energy" gradient (kept named goldGradient for compatibility).
   static const LinearGradient goldGradient = LinearGradient(
-    colors: [Color(0xFFFFD24C), accent],
+    colors: [Color(0xFFFF9A5A), orange],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
+  static const LinearGradient orangeGradient = goldGradient;
+
+  // Green → orange blend, for standout hero elements.
+  static const LinearGradient mixGradient = LinearGradient(
+    colors: [primary, orange],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
+
   static const Color glassBorder = Color(0x33FFFFFF);
-  static const Color shadow = Color(0x140D8B6F);
+  static const Color shadow = Color(0x14000000);
 }

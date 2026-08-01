@@ -80,6 +80,47 @@ class Participant {
   int get remainingDays =>
       (AppConstants.challengeDurationDays - currentDay).clamp(0, 90);
 
+  // ---- Nutrition targets, derived from the profile ----
+
+  /// Multiplier applied to BMR based on how active the person is.
+  double get _activityFactor => switch (physicalActivityLevel) {
+        'Sedentary' => 1.2,
+        'Light' => 1.375,
+        'Active' => 1.725,
+        'Very active' => 1.9,
+        _ => 1.55, // Moderate / unknown
+      };
+
+  /// Resting energy via the Mifflin–St Jeor equation.
+  double get _bmr {
+    final base = (10 * currentWeightKg) + (6.25 * heightCm) - (5 * age);
+    return switch (gender) {
+      'Male' => base + 5,
+      'Female' => base - 161,
+      _ => base - 78, // midpoint for "Other"
+    };
+  }
+
+  /// Calories to maintain current weight (TDEE).
+  int get maintenanceCalories => (_bmr * _activityFactor).round();
+
+  /// Daily calorie target. When aiming to lose weight we apply a ~500 kcal
+  /// deficit (about 0.5 kg/week), floored to a safe minimum so it never
+  /// recommends under-eating.
+  int get dailyCalorieGoal {
+    final int floor = gender == 'Male' ? 1500 : 1200;
+    if (targetWeightKg < currentWeightKg) {
+      final int deficit = maintenanceCalories - 500;
+      return deficit < floor ? floor : deficit;
+    }
+    // Maintaining or gaining.
+    return maintenanceCalories;
+  }
+
+  /// Daily protein target (grams): ~1.6 g per kg of body weight to protect
+  /// muscle during weight loss, kept within a sensible range.
+  int get dailyProteinGoal => (1.6 * currentWeightKg).round().clamp(45, 180);
+
   Participant copyWith({
     double? currentWeightKg,
     double? waistCm,

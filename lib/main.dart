@@ -2,9 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'core/env/app_config.dart';
+import 'state/prefs_provider.dart';
+import 'state/reminders_provider.dart';
 
 // GOING LIVE: enable firebase_core and uncomment.
 // import 'package:firebase_core/firebase_core.dart';
@@ -31,5 +34,13 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
   ]);
 
-  runApp(const ProviderScope(child: DayjoyApp()));
+  final prefs = await SharedPreferences.getInstance();
+
+  // Re-arm any enabled daily reminders (no-op on web; never blocks launch).
+  await bootstrapReminders(prefs);
+
+  runApp(ProviderScope(
+    overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+    child: const DayjoyApp(),
+  ));
 }

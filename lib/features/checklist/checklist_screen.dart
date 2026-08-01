@@ -8,6 +8,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../state/providers.dart';
+import '../../state/water_provider.dart';
 import 'activity_submission_screen.dart';
 import 'step_task_screen.dart';
 import 'widgets/task_tile.dart';
@@ -68,16 +69,41 @@ class _ChecklistScreenState extends ConsumerState<ChecklistScreen> {
     }
 
     if (!success || !mounted) return;
-    final bool justFinished =
-        ref.read(checklistProvider.notifier).setTask(type, true);
-    if (justFinished) _celebrate();
+    final bool wasAllDone = _daySixDone();
+    ref.read(checklistProvider.notifier).setTask(type, true);
+    if (!wasAllDone && _daySixDone()) _celebrate();
+  }
+
+  /// True when all five activity tasks AND the water goal (≥12 glasses) are
+  /// complete — the full 6-task day.
+  bool _daySixDone() {
+    final c = ref.read(checklistProvider);
+    final waterOk = ref.read(waterProvider) >= AppConstants.waterTaskGlasses;
+    return c.allComplete && waterOk;
+  }
+
+  /// Adjusts water and celebrates if this is what completed the whole day.
+  void _changeWater(int delta) {
+    final bool wasAllDone = _daySixDone();
+    final notifier = ref.read(waterProvider.notifier);
+    delta > 0 ? notifier.add() : notifier.remove();
+    if (!wasAllDone && _daySixDone()) _celebrate();
   }
 
   @override
   Widget build(BuildContext context) {
     final checklist = ref.watch(checklistProvider);
+    final int glasses = ref.watch(waterProvider);
+    final bool waterDone = glasses >= AppConstants.waterTaskGlasses;
     final TextTheme text = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context);
+
+    // Water counts as one extra task worth its own points.
+    final int totalTasks = checklist.tasks.length + 1;
+    final int doneCount = checklist.completedCount + (waterDone ? 1 : 0);
+    final double pct = totalTasks == 0 ? 0.0 : doneCount / totalTasks;
+    final int points = checklist.pointsEarned +
+        (waterDone ? AppConstants.waterTaskPoints : 0);
 
     return Scaffold(
       appBar: AppBar(
@@ -97,11 +123,9 @@ class _ChecklistScreenState extends ConsumerState<ChecklistScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                            l.tasksDone(checklist.completedCount,
-                                checklist.tasks.length),
+                        Text(l.tasksDone(doneCount, totalTasks),
                             style: text.titleMedium),
-                        Text('${(checklist.completionPercent * 100).round()}%',
+                        Text('${(pct * 100).round()}%',
                             style: text.titleMedium
                                 ?.copyWith(color: AppColors.primary)),
                       ],
@@ -110,7 +134,7 @@ class _ChecklistScreenState extends ConsumerState<ChecklistScreen> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                       child: LinearProgressIndicator(
-                        value: checklist.completionPercent,
+                        value: pct,
                         minHeight: 10,
                         backgroundColor:
                             AppColors.primary.withOpacity(0.10),
@@ -125,8 +149,8 @@ class _ChecklistScreenState extends ConsumerState<ChecklistScreen> {
                             size: 18, color: AppColors.accent),
                         const SizedBox(width: 4),
                         Text(
-                            l.pointsToday(checklist.pointsEarned,
-                                AppConstants.dailyPointsTotal),
+                            l.pointsToday(
+                                points, AppConstants.dailyPointsTotal),
                             style: text.bodyMedium),
                       ],
                     ),
@@ -145,6 +169,12 @@ class _ChecklistScreenState extends ConsumerState<ChecklistScreen> {
                   onToggle: (value) =>
                       _handleToggle(task.type, value, checklist.day),
                 ),
+
+              // Water intake — completed automatically at 12 glasses.
+              _WaterTaskTile(
+                onAdd: () => _changeWater(1),
+                onRemove: () => _changeWater(-1),
+              ),
             ],
           ),
 
@@ -168,6 +198,91 @@ class _ChecklistScreenState extends ConsumerState<ChecklistScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The water task row: tap the card (or +) to add a glass, − to undo. Turns
+/// green and is marked done once 12 glasses (3 L) are logged.
+class _WaterTaskTile extends ConsumerWidget {
+  const _WaterTaskTile({required this.onAdd, required this.onRemove});
+
+  final VoidCallback onAdd;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final int glasses = ref.watch(waterProvider);
+    const int goal = AppConstants.waterTaskGlasses;
+    final bool done = glasses >= goal;
+    final String goalL = (goal * kGlassMl / 1000).toStringAsFixed(1);
+    final TextTheme text = Theme.of(context).textTheme;
+    final Color accentColor = done ? AppColors.success : AppColors.info;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: GlassCard(
+        onTap: onAdd,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: accentColor.withOpacity(0.14),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Icon(Icons.water_drop_rounded, color: accentColor),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Water Intake', style: text.titleMedium),
+                  const SizedBox(height: 2),
+                  Text('$glasses of $goal glasses · goal $goalL L',
+                      style: text.bodySmall),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.stars_rounded,
+                          size: 14, color: AppColors.accent),
+                      const SizedBox(width: 3),
+                      Text('+${AppConstants.waterTaskPoints} pts',
+                          style: text.bodySmall
+                              ?.copyWith(color: AppColors.accent)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (glasses > 0)
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.remove_circle_outline_rounded),
+                color: AppColors.textSecondary,
+                onPressed: onRemove,
+              ),
+            AnimatedScale(
+              duration: const Duration(milliseconds: 250),
+              scale: done ? 1.0 : 0.92,
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: done ? AppColors.success : AppColors.info,
+                ),
+                child: Icon(done ? Icons.check_rounded : Icons.add_rounded,
+                    size: 20, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

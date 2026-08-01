@@ -7,6 +7,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../data/models/appointment.dart';
 import '../../../data/models/participant.dart';
 import '../../../l10n/gen/app_localizations.dart';
+import '../../meals/edit_diet_plan_screen.dart';
 import '../../../shared/widgets/glass_card.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/stat_tile.dart';
@@ -175,7 +176,11 @@ class DoctorDashboard extends ConsumerWidget {
             Text('${p.gender}, ${p.age} · BMI ${p.bmi.toStringAsFixed(1)}',
                 style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: AppSpacing.lg),
-            _action(context, l, Icons.restaurant_menu_rounded, l.docCreateDiet),
+            _action(context, l, Icons.restaurant_menu_rounded, l.docCreateDiet,
+                onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => EditDietPlanScreen(participant: p)),
+                    )),
             _action(context, l, Icons.note_add_rounded, l.docAddNote),
             _action(context, l, Icons.folder_shared_rounded, l.docMedicalUploads),
             _action(context, l, Icons.history_rounded, l.docPrevConsults),
@@ -187,14 +192,19 @@ class DoctorDashboard extends ConsumerWidget {
   }
 
   Widget _action(
-      BuildContext context, AppLocalizations l, IconData icon, String label) {
+      BuildContext context, AppLocalizations l, IconData icon, String label,
+      {VoidCallback? onTap}) {
     return ListTile(
       leading: Icon(icon, color: AppColors.info),
       title: Text(label),
       onTap: () {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(l.comingSoon(label))));
+        Navigator.of(context).pop(); // close the patient sheet
+        if (onTap != null) {
+          onTap();
+        } else {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(l.comingSoon(label))));
+        }
       },
     );
   }

@@ -50,6 +50,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       final auth = ref.read(authControllerProvider);
       if (auth.role == UserRole.participant && auth.needsRegistration) {
         context.go(Routes.register);
+      } else if (auth.role == UserRole.participant) {
+        // Participants see the transformation stories, then land on Home.
+        context.go(Routes.transformationIntro);
       } else {
         context.go(Routes.forRole(auth.role));
       }

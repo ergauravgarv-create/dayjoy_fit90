@@ -20,8 +20,9 @@ class DayjoyApp extends ConsumerWidget {
       onGenerateTitle: (context) => AppLocalizations.of(context).appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
+      // Clean, professional light theme only (no dark mode) so the look is
+      // consistent for everyone.
+      themeMode: ThemeMode.light,
       routerConfig: appRouter,
       // Localization
       locale: locale,

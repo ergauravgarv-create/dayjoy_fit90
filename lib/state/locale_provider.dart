@@ -18,4 +18,10 @@ const List<Locale> kSupportedUiLocales = [
   Locale('en'),
   Locale('hi'),
   Locale('mr'),
+  Locale('gu'),
+  Locale('bn'),
+  Locale('ta'),
+  Locale('te'),
+  Locale('kn'),
+  Locale('or'),
 ];

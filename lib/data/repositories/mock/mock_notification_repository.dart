@@ -65,4 +65,24 @@ class MockNotificationRepository implements NotificationRepository {
     }
     _tick.add(null);
   }
+
+  int _broadcastSeq = 0;
+
+  @override
+  Future<void> addBroadcast(
+      {required String title, required String body}) async {
+    // The mock repo backs every participant with this one shared list, so the
+    // announcement lands in the inbox immediately (in-memory for the demo).
+    _items.insert(
+      0,
+      AppNotification(
+        id: 'bcast-${_broadcastSeq++}',
+        title: title,
+        body: body,
+        type: 'broadcast',
+        createdAt: DateTime.now(),
+      ),
+    );
+    _tick.add(null);
+  }
 }

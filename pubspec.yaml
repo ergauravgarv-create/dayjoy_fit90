@@ -30,6 +30,13 @@ dependencies:
   # your Flutter release, avoiding version-solve conflicts.
   intl: any
 
+  # Local on-device storage (used to persist the meal diary across restarts).
+  shared_preferences: ^2.2.2
+
+  # Local daily reminders (mobile only; web uses a no-op via conditional import).
+  flutter_local_notifications: ^17.2.3
+  timezone: ^0.9.4
+
   # ---------------------------------------------------------------
   # Backend (Firebase) — wire these up once you run `flutterfire
   # configure`. The app runs WITHOUT them thanks to the mock
@@ -62,8 +69,12 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true # enables gen-l10n from lib/l10n/*.arb (see l10n.yaml)
+  # (Logo is used as the app icon via flutter_launcher_icons, not bundled here.)
+
+  # Bundled image assets (transformation photos, etc.). Drop files into
+  # assets/images/ and reference them by path, e.g. 'assets/images/priya_before.jpg'.
   assets:
-    - assets/icon/logo.png
+    - assets/images/
 
 # ---------------------------------------------------------------------------
 # App icon generation. Put your company logo at assets/icon/logo.png (a square

@@ -15,8 +15,11 @@ import '../../data/models/appointment.dart';
 import '../appointments/book_appointment_screen.dart';
 import '../badges/badges_gallery_screen.dart';
 import '../health/connect_health_screen.dart';
+import '../legal/legal_page.dart';
 import '../notifications/notifications_screen.dart';
 import '../registration/registration_screen.dart';
+import '../reminders/reminders_screen.dart';
+import '../rewards/rewards_screen.dart';
 import '../support/support_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -145,6 +148,13 @@ class ProfileScreen extends ConsumerWidget {
                               builder: (_) => const BadgesGalleryScreen()),
                         )),
                 _NavRow(
+                    icon: Icons.stars_rounded,
+                    label: 'Reward points',
+                    onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                              builder: (_) => const RewardsScreen()),
+                        )),
+                _NavRow(
                     icon: Icons.notifications_none_rounded,
                     label: l.profileNotifications,
                     onTap: () => Navigator.of(context).push(
@@ -152,12 +162,30 @@ class ProfileScreen extends ConsumerWidget {
                               builder: (_) => const NotificationsScreen()),
                         )),
                 _NavRow(
+                    icon: Icons.alarm_rounded,
+                    label: 'Reminders',
+                    onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                              builder: (_) => const RemindersScreen()),
+                        )),
+                _NavRow(
                     icon: Icons.language_rounded,
                     label: l.profileLanguage,
                     onTap: () => _showLanguageDialog(context, ref, l)),
-                _NavRow(icon: Icons.lock_outline_rounded, label: l.profilePrivacy),
                 _NavRow(
-                    icon: Icons.description_outlined, label: l.profileTerms),
+                    icon: Icons.lock_outline_rounded,
+                    label: l.profilePrivacy,
+                    onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                              builder: (_) => privacyPolicyPage()),
+                        )),
+                _NavRow(
+                    icon: Icons.description_outlined,
+                    label: l.profileTerms,
+                    onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                              builder: (_) => termsOfServicePage()),
+                        )),
                 _NavRow(
                     icon: Icons.support_agent_rounded,
                     label: l.profileSupport,
@@ -194,32 +222,43 @@ class ProfileScreen extends ConsumerWidget {
 void _showLanguageDialog(
     BuildContext context, WidgetRef ref, AppLocalizations l) {
   final current = ref.read(localeProvider);
+  // Native name (with the English name in brackets) for each language.
+  final items = <(String, Locale?)>[
+    (l.languageSystem, null),
+    ('English', const Locale('en')),
+    ('हिंदी (Hindi)', const Locale('hi')),
+    ('मराठी (Marathi)', const Locale('mr')),
+    ('ગુજરાતી (Gujarati)', const Locale('gu')),
+    ('বাংলা (Bengali)', const Locale('bn')),
+    ('தமிழ் (Tamil)', const Locale('ta')),
+    ('తెలుగు (Telugu)', const Locale('te')),
+    ('ಕನ್ನಡ (Kannada)', const Locale('kn')),
+    ('ଓଡ଼ିଆ (Odia)', const Locale('or')),
+  ];
   showDialog<void>(
     context: context,
-    builder: (ctx) {
-      Widget option(String label, Locale? locale) => RadioListTile<String>(
-            value: locale?.languageCode ?? 'system',
-            groupValue: current?.languageCode ?? 'system',
-            title: Text(label),
-            contentPadding: EdgeInsets.zero,
-            onChanged: (_) {
-              ref.read(localeProvider.notifier).set(locale);
-              Navigator.of(ctx).pop();
-            },
-          );
-      return AlertDialog(
-        title: Text(l.languageTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+    builder: (ctx) => AlertDialog(
+      title: Text(l.languageTitle),
+      contentPadding: const EdgeInsets.only(top: AppSpacing.md),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ListView(
+          shrinkWrap: true,
           children: [
-            option(l.languageSystem, null),
-            option(l.languageEnglish, const Locale('en')),
-            option(l.languageHindi, const Locale('hi')),
-            option(l.languageMarathi, const Locale('mr')),
+            for (final (label, locale) in items)
+              RadioListTile<String>(
+                value: locale?.languageCode ?? 'system',
+                groupValue: current?.languageCode ?? 'system',
+                title: Text(label),
+                onChanged: (_) {
+                  ref.read(localeProvider.notifier).set(locale);
+                  Navigator.of(ctx).pop();
+                },
+              ),
           ],
         ),
-      );
-    },
+      ),
+    ),
   );
 }
 

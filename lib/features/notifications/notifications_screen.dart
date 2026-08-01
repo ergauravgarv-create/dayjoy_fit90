@@ -21,6 +21,7 @@ class NotificationsScreen extends ConsumerWidget {
         'weeklyReport' => Icons.insights_rounded,
         'weeklyCheckin' => Icons.event_note_rounded,
         'motivation' => Icons.auto_awesome_rounded,
+        'broadcast' => Icons.campaign_rounded,
         'appointmentUpdate' ||
         'appointmentReminder' ||
         'appointmentRequested' =>
@@ -31,7 +32,7 @@ class NotificationsScreen extends ConsumerWidget {
   Color _color(String type) => switch (type) {
         'dayComplete' || 'badge' => AppColors.accent,
         'reminder' || 'weeklyCheckin' => AppColors.primary,
-        'weeklyReport' => AppColors.info,
+        'weeklyReport' || 'broadcast' => AppColors.info,
         _ => AppColors.taskYoga,
       };
 

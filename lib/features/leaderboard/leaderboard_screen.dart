@@ -7,6 +7,7 @@ import '../../data/models/leaderboard_entry.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../state/providers.dart';
+import '../rewards/rewards_screen.dart';
 
 class LeaderboardScreen extends ConsumerStatefulWidget {
   const LeaderboardScreen({super.key});
@@ -16,39 +17,66 @@ class LeaderboardScreen extends ConsumerStatefulWidget {
 }
 
 class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
-  int _tab = 0;
+  int _scope = 0; // 0 = All India, 1 = My City
 
   @override
   Widget build(BuildContext context) {
-    final entries = ref.watch(leaderboardProvider);
+    final allEntries = ref.watch(leaderboardProvider);
+    final String? myCity = ref.watch(participantProvider)?.city;
     final TextTheme text = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context);
-    final tabs = [l.periodDaily, l.periodWeekly, l.periodMonthly, l.periodOverall];
+
+    // Apply the city scope; ranks are then re-numbered by position.
+    final List<LeaderboardEntry> entries = (_scope == 1 && myCity != null)
+        ? allEntries.where((e) => e.city == myCity).toList()
+        : allEntries;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.leaderboardTitle)),
+      appBar: AppBar(
+        title: Text(l.leaderboardTitle),
+        actions: [
+          IconButton(
+            tooltip: 'Reward points',
+            icon: const Icon(Icons.stars_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const RewardsScreen()),
+            ),
+          ),
+        ],
+      ),
       body: Column(
         children: [
-          // Period selector
-          SizedBox(
-            height: 44,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: AppSpacing.page,
-              itemCount: tabs.length,
-              separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
-              itemBuilder: (context, i) => ChoiceChip(
-                label: Text(tabs[i]),
-                selected: _tab == i,
-                labelStyle: TextStyle(
-                  color: _tab == i ? Colors.white : AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
+          const SizedBox(height: AppSpacing.md),
+
+          // Scope: All India / My City
+          Padding(
+            padding: AppSpacing.page,
+            child: Row(
+              children: [
+                _ScopeChip(
+                  label: 'All India',
+                  selected: _scope == 0,
+                  onTap: () => setState(() => _scope = 0),
                 ),
-                onSelected: (_) => setState(() => _tab = i),
-              ),
+                const SizedBox(width: AppSpacing.sm),
+                if (myCity != null)
+                  _ScopeChip(
+                    label: myCity,
+                    icon: Icons.location_on_rounded,
+                    selected: _scope == 1,
+                    onTap: () => setState(() => _scope = 1),
+                  ),
+              ],
             ),
           ),
           const SizedBox(height: AppSpacing.md),
+
+          if (entries.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Text('No one here yet in $myCity.',
+                  style: text.bodyMedium),
+            ),
 
           // Podium (top 3)
           if (entries.length >= 3)
@@ -57,9 +85,12 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Expanded(child: _Podium(entry: entries[1], height: 90)),
-                  Expanded(child: _Podium(entry: entries[0], height: 120)),
-                  Expanded(child: _Podium(entry: entries[2], height: 74)),
+                  Expanded(
+                      child: _Podium(entry: entries[1], rank: 2, height: 90)),
+                  Expanded(
+                      child: _Podium(entry: entries[0], rank: 1, height: 120)),
+                  Expanded(
+                      child: _Podium(entry: entries[2], rank: 3, height: 74)),
                 ],
               ),
             ),
@@ -87,9 +118,9 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                       children: [
                         SizedBox(
                           width: 28,
-                          child: Text('#${e.rank}',
+                          child: Text('#${i + 1}',
                               style: text.titleMedium?.copyWith(
-                                  color: e.rank <= 3
+                                  color: i < 3
                                       ? AppColors.accent
                                       : AppColors.textSecondary)),
                         ),
@@ -138,14 +169,61 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
   }
 }
 
+class _ScopeChip extends StatelessWidget {
+  const _ScopeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.icon,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary
+              : AppColors.primary.withOpacity(0.10),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon,
+                  size: 15,
+                  color: selected ? Colors.white : AppColors.primary),
+              const SizedBox(width: 4),
+            ],
+            Text(label,
+                style: TextStyle(
+                    color: selected ? Colors.white : AppColors.primary,
+                    fontWeight: FontWeight.w700)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Podium extends StatelessWidget {
-  const _Podium({required this.entry, required this.height});
+  const _Podium(
+      {required this.entry, required this.rank, required this.height});
   final LeaderboardEntry entry;
+  final int rank;
   final double height;
 
   @override
   Widget build(BuildContext context) {
-    final bool gold = entry.rank == 1;
+    final bool gold = rank == 1;
     return Column(
       children: [
         CircleAvatar(
@@ -175,7 +253,7 @@ class _Podium extends StatelessWidget {
           ),
           alignment: Alignment.topCenter,
           padding: const EdgeInsets.only(top: 8),
-          child: Text('#${entry.rank}',
+          child: Text('#$rank',
               style: const TextStyle(
                   color: Colors.white, fontWeight: FontWeight.w800)),
         ),

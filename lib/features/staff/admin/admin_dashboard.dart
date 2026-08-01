@@ -6,8 +6,11 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../data/models/admin_models.dart';
 import '../../../data/models/health_enums.dart';
+import '../../../data/models/participant.dart';
 import '../../../l10n/gen/app_localizations.dart';
+import '../../meals/edit_diet_plan_screen.dart';
 import '../../../shared/widgets/glass_card.dart';
+import 'broadcast_screen.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/stat_tile.dart';
 import '../../../state/repository_providers.dart';
@@ -31,7 +34,16 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l.adminTitle),
-        actions: const [StaffSignOutAction()],
+        actions: [
+          IconButton(
+            tooltip: 'New announcement',
+            icon: const Icon(Icons.campaign_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const BroadcastScreen()),
+            ),
+          ),
+          const StaffSignOutAction(),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
@@ -224,13 +236,50 @@ class _ParticipantsTabState extends ConsumerState<_ParticipantsTab> {
                 for (final p in filtered)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: RosterTile(participant: p),
+                    child: RosterTile(
+                      participant: p,
+                      onTap: () => _openParticipantActions(context, p),
+                    ),
                   ),
               ],
             );
           },
         ),
       ],
+    );
+  }
+
+  void _openParticipantActions(BuildContext context, Participant p) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
+              child: Text(p.name,
+                  style: Theme.of(context).textTheme.titleLarge),
+            ),
+            ListTile(
+              leading: const Icon(Icons.restaurant_menu_rounded,
+                  color: AppColors.info),
+              title: const Text('Create / edit diet plan'),
+              onTap: () {
+                Navigator.of(context).pop(); // close the sheet
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => EditDietPlanScreen(participant: p)),
+                );
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+        ),
+      ),
     );
   }
 }

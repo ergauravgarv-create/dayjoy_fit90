@@ -13,8 +13,13 @@ import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/stat_tile.dart';
 import '../../shared/widgets/weight_line_chart.dart';
 import '../../state/engagement_providers.dart';
+import '../../state/meal_provider.dart';
 import '../../state/providers.dart';
+import '../meals/meal_tracker_screen.dart';
+import '../meals/my_diet_plan_screen.dart';
 import '../notifications/notifications_screen.dart';
+import 'home_banner_carousel.dart';
+import 'home_water_card.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -28,6 +33,7 @@ class HomeScreen extends ConsumerWidget {
     final String quote = ref.watch(dailyQuoteProvider);
     final leaderboard = ref.watch(leaderboardProvider);
     final int unread = ref.watch(unreadCountProvider);
+    final int mealKcal = MealTotals.of(ref.watch(mealLogProvider)).kcal;
 
     if (participant == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -47,15 +53,19 @@ class HomeScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 100),
             children: [
-              // Brand bar: app logo (left) + actions (right)
+              // Greeting header
               Row(
                 children: [
-                  Image.asset(
-                    'assets/icon/logo.png',
-                    height: 40,
-                    filterQuality: FilterQuality.high,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(l.homeGreeting, style: text.bodyMedium),
+                        Text(participant.name.split(' ').first,
+                            style: text.headlineSmall),
+                      ],
+                    ),
                   ),
-                  const Spacer(),
                   _NotificationBell(
                     unread: unread,
                     onTap: () => Navigator.of(context).push(
@@ -67,7 +77,7 @@ class HomeScreen extends ConsumerWidget {
                   _StreakPill(streak: streak),
                   const SizedBox(width: AppSpacing.sm),
                   CircleAvatar(
-                    radius: 22,
+                    radius: 24,
                     backgroundColor: AppColors.primary.withOpacity(0.15),
                     child: Text(
                       participant.name.characters.first,
@@ -80,15 +90,8 @@ class HomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
 
-              // Greeting
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(l.homeGreeting, style: text.bodyMedium),
-                  Text(participant.name.split(' ').first,
-                      style: text.headlineSmall),
-                ],
-              ),
+              // Sliding promotional banners (editable — see kHomeBanners)
+              const HomeBannerCarousel(),
               const SizedBox(height: AppSpacing.xl),
 
               // Hero progress card
@@ -183,6 +186,70 @@ class HomeScreen extends ConsumerWidget {
                     color: AppColors.taskYoga,
                   ),
                 ],
+              ),
+              const SizedBox(height: AppSpacing.xl),
+
+              // Meal tracker CTA
+              GlassCard(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const MealTrackerScreen()),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: AppColors.orange.withOpacity(0.15),
+                      child: const Icon(Icons.restaurant_rounded,
+                          color: AppColors.orange),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Log your meals', style: text.titleMedium),
+                          Text('$mealKcal / ${participant.dailyCalorieGoal} kcal today',
+                              style: text.bodySmall),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              // Water intake tracker
+              const HomeWaterCard(),
+              const SizedBox(height: AppSpacing.md),
+
+              // Diet plan CTA (doctor-approved)
+              GlassCard(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const MyDietPlanScreen()),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: AppColors.primary.withOpacity(0.12),
+                      child: const Icon(Icons.restaurant_menu_rounded,
+                          color: AppColors.primary),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('My diet plan', style: text.titleMedium),
+                          Text('Approved by your doctor · tap to view & log',
+                              style: text.bodySmall),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded),
+                  ],
+                ),
               ),
               const SizedBox(height: AppSpacing.xl),
 

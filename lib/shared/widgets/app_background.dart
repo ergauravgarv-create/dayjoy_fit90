@@ -16,58 +16,33 @@ class AppBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool dark = Theme.of(context).brightness == Brightness.dark;
-
-    final List<Color> base = dark
-        ? const [Color(0xFF0B1512), Color(0xFF0E1B16), Color(0xFF0B1512)]
-        : const [Color(0xFFF4FBF8), Color(0xFFEFF7F2), Color(0xFFF7FAF9)];
-
+    // Clean, professional near-white base with subtle green + orange accents.
     return Stack(
       children: [
-        // Base gradient
-        Positioned.fill(
+        const Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: base,
+                colors: [Color(0xFFFFFFFF), Color(0xFFF6F8FA), Color(0xFFFFFFFF)],
               ),
             ),
           ),
         ),
 
-        // Green glow, top-right (energy / freshness)
-        Positioned(
-          top: -140,
-          right: -110,
-          child: _Glow(
-            color: AppColors.primary,
-            opacity: dark ? 0.22 : 0.16,
-            size: 360,
-          ),
+        // Faint green glow, top-right
+        const Positioned(
+          top: -150,
+          right: -120,
+          child: _Glow(color: AppColors.primary, opacity: 0.07, size: 340),
         ),
 
-        // Gold glow, bottom-left (warmth / motivation)
-        Positioned(
-          bottom: -160,
-          left: -120,
-          child: _Glow(
-            color: AppColors.accent,
-            opacity: dark ? 0.12 : 0.10,
-            size: 320,
-          ),
-        ),
-
-        // Soft secondary-green glow, mid-left (balance)
-        Positioned(
-          top: 280,
-          left: -140,
-          child: _Glow(
-            color: AppColors.secondary,
-            opacity: dark ? 0.10 : 0.08,
-            size: 280,
-          ),
+        // Faint orange glow, bottom-left
+        const Positioned(
+          bottom: -170,
+          left: -130,
+          child: _Glow(color: AppColors.orange, opacity: 0.06, size: 300),
         ),
 
         // App content on top
