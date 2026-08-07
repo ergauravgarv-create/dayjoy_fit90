@@ -37,6 +37,18 @@ dependencies:
   flutter_local_notifications: ^17.2.3
   timezone: ^0.9.4
 
+  # CSV parsing for the bundled clinical diet-chart database.
+  csv: ^6.0.0
+
+  # Progress photo capture (camera / gallery), stored on-device for now.
+  image_picker: ^1.1.2
+
+  # Opens reference exercise videos on YouTube (web + mobile).
+  url_launcher: ^6.3.0
+
+  # Share the branded progress card image via the system share sheet.
+  share_plus: ^10.0.0
+
   # ---------------------------------------------------------------
   # Backend (Firebase) — wire these up once you run `flutterfire
   # configure`. The app runs WITHOUT them thanks to the mock
@@ -56,8 +68,11 @@ dependencies:
   # camera: ^0.11.0
   # image: ^4.2.0
   # crypto: ^3.0.3
-  # health: ^11.0.0
-  # permission_handler: ^11.3.1
+
+  # Real step count via Health Connect (Android) / HealthKit (iOS).
+  # Only reachable from mobile-guarded code (see platform_health_service_io.dart);
+  # the web build never compiles it, so dart2js stays clean.
+  health: ^11.0.0
 
 dev_dependencies:
   flutter_test:
@@ -75,6 +90,7 @@ flutter:
   # assets/images/ and reference them by path, e.g. 'assets/images/priya_before.jpg'.
   assets:
     - assets/images/
+    - assets/data/
 
 # ---------------------------------------------------------------------------
 # App icon generation. Put your company logo at assets/icon/logo.png (a square

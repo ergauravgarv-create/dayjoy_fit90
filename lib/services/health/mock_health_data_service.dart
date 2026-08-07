@@ -57,6 +57,10 @@ class MockHealthDataService implements HealthDataService {
       const Duration(minutes: 38);
 
   @override
+  Future<Duration?> getTodaySleep() async =>
+      const Duration(hours: 7, minutes: 12);
+
+  @override
   Future<DateTime?> getLastSyncTime() async => _lastSync;
 
   @override

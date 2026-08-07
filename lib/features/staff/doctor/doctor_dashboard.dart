@@ -7,6 +7,8 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../data/models/appointment.dart';
 import '../../../data/models/participant.dart';
 import '../../../l10n/gen/app_localizations.dart';
+import '../../diet_charts/diet_chart_assessment_screen.dart';
+import '../../diet_charts/diet_chart_library_screen.dart';
 import '../../meals/edit_diet_plan_screen.dart';
 import '../../../shared/widgets/glass_card.dart';
 import '../../../shared/widgets/section_header.dart';
@@ -176,6 +178,19 @@ class DoctorDashboard extends ConsumerWidget {
             Text('${p.gender}, ${p.age} · BMI ${p.bmi.toStringAsFixed(1)}',
                 style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: AppSpacing.lg),
+            _action(context, l, Icons.assignment_turned_in_rounded,
+                'Assess & suggest chart',
+                onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) =>
+                              DietChartAssessmentScreen(participant: p)),
+                    )),
+            _action(context, l, Icons.menu_book_rounded, 'Browse chart library',
+                onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) =>
+                              DietChartLibraryScreen(participant: p)),
+                    )),
             _action(context, l, Icons.restaurant_menu_rounded, l.docCreateDiet,
                 onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(

@@ -7,9 +7,13 @@ import '../../core/theme/app_spacing.dart';
 import '../../data/models/app_notification.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../state/activity_provider.dart';
 import '../../state/engagement_providers.dart';
 import '../../state/providers.dart';
 import '../../state/repository_providers.dart';
+import '../badges/badges_gallery_screen.dart';
+import '../community/community_screen.dart';
+import '../reminders/reminders_screen.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
@@ -17,6 +21,7 @@ class NotificationsScreen extends ConsumerWidget {
   IconData _icon(String type) => switch (type) {
         'dayComplete' => Icons.emoji_events_rounded,
         'badge' => Icons.workspace_premium_rounded,
+        'challenge' => Icons.flag_rounded,
         'reminder' => Icons.notifications_active_rounded,
         'weeklyReport' => Icons.insights_rounded,
         'weeklyCheckin' => Icons.event_note_rounded,
@@ -30,100 +35,144 @@ class NotificationsScreen extends ConsumerWidget {
       };
 
   Color _color(String type) => switch (type) {
-        'dayComplete' || 'badge' => AppColors.accent,
+        'dayComplete' || 'badge' || 'challenge' => AppColors.accent,
         'reminder' || 'weeklyCheckin' => AppColors.primary,
         'weeklyReport' || 'broadcast' => AppColors.info,
         _ => AppColors.taskYoga,
       };
 
+  /// Screen to deep-link to when a notification is tapped, or null.
+  Widget? _destinationFor(String type) => switch (type) {
+        'badge' => const BadgesGalleryScreen(),
+        'challenge' => const CommunityScreen(),
+        'reminder' => const RemindersScreen(),
+        _ => null,
+      };
+
+  bool _isLocal(String id) =>
+      id.startsWith('badge_') || id.startsWith('challenge_');
+
+  void _onTap(
+      BuildContext context, WidgetRef ref, String uid, AppNotification n) {
+    if (_isLocal(n.id)) {
+      ref.read(activityReadProvider.notifier).markRead(n.id);
+    } else {
+      ref.read(notificationRepositoryProvider).markRead(uid, n.id);
+    }
+    final dest = _destinationFor(n.type);
+    if (dest != null) {
+      Navigator.of(context)
+          .push(MaterialPageRoute<void>(builder: (_) => dest));
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(notificationsProvider);
     final uid = ref.watch(authUidProvider) ?? 'demo-user';
     final l = AppLocalizations.of(context);
+
+    final List<AppNotification> server =
+        ref.watch(notificationsProvider).valueOrNull ?? const [];
+    final List<AppNotification> local = ref.watch(localActivityProvider);
+    final List<AppNotification> items = [...server, ...local]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return Scaffold(
       appBar: AppBar(
         title: Text(l.notificationsTitle),
         actions: [
           TextButton(
-            onPressed: () =>
-                ref.read(notificationRepositoryProvider).markAllRead(uid),
+            onPressed: () {
+              ref.read(notificationRepositoryProvider).markAllRead(uid);
+              ref
+                  .read(activityReadProvider.notifier)
+                  .markAll(local.map((n) => n.id));
+            },
             child: Text(l.markAllRead),
           ),
         ],
       ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e')),
-        data: (items) {
-          if (items.isEmpty) {
-            return Center(child: Text(l.allCaughtUp));
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xxl),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-            itemBuilder: (context, i) {
-              final AppNotification n = items[i];
-              return GlassCard(
-                onTap: () => ref
-                    .read(notificationRepositoryProvider)
-                    .markRead(uid, n.id),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: _color(n.type).withOpacity(0.15),
-                      child: Icon(_icon(n.type), color: _color(n.type)),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(n.title,
+      body: items.isEmpty
+          ? Center(child: Text(l.allCaughtUp))
+          : ListView.separated(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xxl),
+              itemCount: items.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: AppSpacing.sm),
+              itemBuilder: (context, i) {
+                final AppNotification n = items[i];
+                final bool linkable = _destinationFor(n.type) != null;
+                return GlassCard(
+                  onTap: () => _onTap(context, ref, uid, n),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: _color(n.type).withOpacity(0.15),
+                        child: Icon(_icon(n.type), color: _color(n.type)),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(n.title,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                              fontWeight: n.read
+                                                  ? FontWeight.w600
+                                                  : FontWeight.w800)),
+                                ),
+                                if (!n.read)
+                                  Container(
+                                    width: 9,
+                                    height: 9,
+                                    decoration: const BoxDecoration(
+                                        color: AppColors.primary,
+                                        shape: BoxShape.circle),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(n.body,
+                                style: Theme.of(context).textTheme.bodySmall),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text(_ago(l, n.createdAt),
                                     style: Theme.of(context)
                                         .textTheme
-                                        .titleSmall
+                                        .bodySmall
                                         ?.copyWith(
-                                            fontWeight: n.read
-                                                ? FontWeight.w600
-                                                : FontWeight.w800)),
-                              ),
-                              if (!n.read)
-                                Container(
-                                  width: 9,
-                                  height: 9,
-                                  decoration: const BoxDecoration(
-                                      color: AppColors.primary,
-                                      shape: BoxShape.circle),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(n.body,
-                              style: Theme.of(context).textTheme.bodySmall),
-                          const SizedBox(height: 4),
-                          Text(_ago(l, n.createdAt),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: AppColors.textSecondary)),
-                        ],
+                                            color: AppColors.textSecondary)),
+                                if (linkable) ...[
+                                  const Spacer(),
+                                  Text('View',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.w700)),
+                                  const Icon(Icons.chevron_right_rounded,
+                                      size: 16, color: AppColors.primary),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
+                    ],
+                  ),
+                );
+              },
+            ),
     );
   }
 

@@ -3,8 +3,9 @@
     <!-- Core -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Camera (daily activity + progress photos) -->
-    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Camera (daily activity + progress photos). image_picker uses the system
+         camera app via intent and does NOT need the CAMERA permission declared;
+         declaring it would force a runtime grant, so it's intentionally omitted. -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <!-- Notifications (Android 13+) -->
@@ -16,6 +17,7 @@
     <uses-permission android:name="android.permission.health.READ_DISTANCE" />
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
 
     <application
@@ -41,25 +43,41 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Health Connect permission rationale. Uncomment when you ship
-                 health integration so Health Connect can link to your policy.
+            <!-- Health Connect permission rationale (pre-Android 14). Lets
+                 Health Connect deep-link to our privacy policy. -->
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
-            -->
         </activity>
+
+        <!-- Health Connect permission rationale (Android 14+ / API 34). -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
 
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
-    <!-- Package visibility (Android 11+): lets the app detect Health Connect. -->
+    <!-- Package visibility (Android 11+): lets the app detect Health Connect
+         and open external https links (reference workout videos on YouTube). -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
         </intent>
     </queries>
 </manifest>

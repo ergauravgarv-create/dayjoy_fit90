@@ -45,6 +45,7 @@ class HealthSyncRepository {
       final double? distance = await _health.getTodayDistanceKm();
       final double? calories = await _health.getTodayActiveCalories();
       final Duration? workout = await _health.getTodayWorkoutDuration();
+      final Duration? sleep = await _health.getTodaySleep();
       final DateTime? lastSync = await _health.getLastSyncTime();
 
       final HealthSyncRecord record = HealthSyncRecord(
@@ -59,6 +60,7 @@ class HealthSyncRepository {
         distanceKm: distance,
         activeCalories: calories,
         workoutMinutes: workout?.inMinutes,
+        sleepMinutes: sleep?.inMinutes,
         sourceType: SourceType.phone,
         permissionStatus: perm,
         lastSyncAt: lastSync ?? now,

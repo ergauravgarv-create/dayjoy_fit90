@@ -133,10 +133,13 @@ class Participant {
 
   Participant copyWith({
     double? currentWeightKg,
+    double? targetWeightKg,
     double? waistCm,
     String? photoUrl,
     int? streak,
     int? totalPoints,
+    String? foodPreference,
+    String? physicalActivityLevel,
   }) {
     return Participant(
       id: id,
@@ -149,17 +152,18 @@ class Participant {
       heightCm: heightCm,
       startWeightKg: startWeightKg,
       currentWeightKg: currentWeightKg ?? this.currentWeightKg,
-      targetWeightKg: targetWeightKg,
+      targetWeightKg: targetWeightKg ?? this.targetWeightKg,
       city: city,
       distributorName: distributorName,
       sponsorId: sponsorId,
       role: role,
-      foodPreference: foodPreference,
+      foodPreference: foodPreference ?? this.foodPreference,
       waistCm: waistCm ?? this.waistCm,
       startDate: startDate,
       streak: streak ?? this.streak,
       totalPoints: totalPoints ?? this.totalPoints,
-      physicalActivityLevel: physicalActivityLevel,
+      physicalActivityLevel:
+          physicalActivityLevel ?? this.physicalActivityLevel,
       healthConditions: healthConditions,
     );
   }

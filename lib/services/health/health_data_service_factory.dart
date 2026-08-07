@@ -2,31 +2,26 @@ import 'package:flutter/foundation.dart';
 
 import 'health_data_service.dart';
 import 'mock_health_data_service.dart';
-
-// ---------------------------------------------------------------------------
-// GOING LIVE: uncomment these imports and the branches below, and enable the
-// `health` + `permission_handler` dependencies in pubspec.yaml. The real
-// implementations live in android_health_connect_service.dart /
-// ios_healthkit_service.dart. Until then everything runs on the mock so the
-// app builds with zero native/health dependencies.
-// ---------------------------------------------------------------------------
-// import 'dart:io' show Platform;
-// import 'android_health_connect_service.dart';
-// import 'ios_healthkit_service.dart';
+// Web-safe platform selection: the stub returns null (→ mock); on mobile the
+// dart:io variant returns the real Health Connect / HealthKit service. Because
+// only the io variant imports `package:health`, the web build never compiles
+// the plugin and dart2js stays clean.
+import 'platform_health_service.dart'
+    if (dart.library.io) 'platform_health_service_io.dart';
 
 /// Chooses the correct [HealthDataService] for the current platform.
+///
+/// • Web / desktop / unsupported → [MockHealthDataService] (deterministic demo).
+/// • Android → AndroidHealthConnectService (real steps via Health Connect).
+/// • iOS     → IOSHealthKitService (real steps via HealthKit).
 class HealthDataServiceFactory {
   const HealthDataServiceFactory();
 
-  /// Set true in tests / demo to force the mock regardless of platform.
-  static bool forceMock = true;
+  /// Force the mock regardless of platform (tests / demo screenshots).
+  static bool forceMock = false;
 
   HealthDataService create() {
     if (forceMock || kIsWeb) return MockHealthDataService();
-
-    // if (Platform.isAndroid) return AndroidHealthConnectService();
-    // if (Platform.isIOS) return IOSHealthKitService();
-
-    return MockHealthDataService();
+    return createPlatformHealthService() ?? MockHealthDataService();
   }
 }

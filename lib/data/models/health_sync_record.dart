@@ -20,6 +20,7 @@ class HealthSyncRecord {
     this.distanceKm,
     this.activeCalories,
     this.workoutMinutes,
+    this.sleepMinutes,
     this.weightKg,
     this.sourceType = SourceType.unknown,
     this.permissionStatus = PermissionStatus.notDetermined,
@@ -46,6 +47,7 @@ class HealthSyncRecord {
   final double? distanceKm;
   final double? activeCalories;
   final int? workoutMinutes;
+  final int? sleepMinutes;
   final double? weightKg;
 
   final SourceType sourceType;
@@ -61,6 +63,7 @@ class HealthSyncRecord {
     double? distanceKm,
     double? activeCalories,
     int? workoutMinutes,
+    int? sleepMinutes,
     double? weightKg,
     SyncStatus? syncStatus,
     String? syncError,
@@ -81,6 +84,7 @@ class HealthSyncRecord {
       distanceKm: distanceKm ?? this.distanceKm,
       activeCalories: activeCalories ?? this.activeCalories,
       workoutMinutes: workoutMinutes ?? this.workoutMinutes,
+      sleepMinutes: sleepMinutes ?? this.sleepMinutes,
       weightKg: weightKg ?? this.weightKg,
       sourceType: sourceType ?? this.sourceType,
       permissionStatus: permissionStatus ?? this.permissionStatus,
@@ -104,6 +108,7 @@ class HealthSyncRecord {
         'distanceKm': distanceKm,
         'activeCalories': activeCalories,
         'workoutMinutes': workoutMinutes,
+        'sleepMinutes': sleepMinutes,
         'weightKg': weightKg,
         'sourceType': sourceType.name,
         'permissionStatus': permissionStatus.name,
@@ -127,6 +132,7 @@ class HealthSyncRecord {
         distanceKm: (j['distanceKm'] as num?)?.toDouble(),
         activeCalories: (j['activeCalories'] as num?)?.toDouble(),
         workoutMinutes: (j['workoutMinutes'] as num?)?.toInt(),
+        sleepMinutes: (j['sleepMinutes'] as num?)?.toInt(),
         weightKg: (j['weightKg'] as num?)?.toDouble(),
         sourceType: SourceType.values.byName(j['sourceType'] as String),
         permissionStatus:

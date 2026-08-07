@@ -23,6 +23,9 @@ abstract interface class HealthDataService {
   Future<double?> getTodayActiveCalories();
   Future<Duration?> getTodayWorkoutDuration();
 
+  /// Total time asleep for last night (queried across the overnight window).
+  Future<Duration?> getTodaySleep();
+
   /// Timestamp of the last successful sync, or null if never synced.
   Future<DateTime?> getLastSyncTime();
 

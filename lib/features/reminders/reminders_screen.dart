@@ -69,8 +69,26 @@ class RemindersScreen extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: AppSpacing.lg),
-          for (final r in reminders)
-            _ReminderTile(reminder: r),
+          for (final cat in ReminderCategory.values) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Row(
+                children: [
+                  Text(cat.label, style: text.titleMedium),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    '${reminders.where((r) => r.kind.category == cat && r.enabled).length} on',
+                    style: text.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            for (final r
+                in reminders.where((r) => r.kind.category == cat))
+              _ReminderTile(reminder: r),
+            const SizedBox(height: AppSpacing.md),
+          ],
         ],
       ),
     );

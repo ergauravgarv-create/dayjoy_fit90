@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -8,7 +11,8 @@ import '../../data/models/weekly_checkin.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/section_header.dart';
-import '../../state/health_providers.dart';
+import '../../state/measurements_provider.dart';
+import '../../state/progress_photos_provider.dart';
 import '../../state/providers.dart';
 import '../../state/repository_providers.dart';
 
@@ -28,7 +32,7 @@ class _WeeklyCheckInScreenState extends ConsumerState<WeeklyCheckInScreen> {
 
   int _energy = 3, _sleep = 3, _digestion = 3, _mood = 3;
   bool _frontCaptured = false, _sideCaptured = false;
-  String? _frontUrl, _sideUrl;
+  String? _frontData, _sideData; // base64 preview of the captured photo
   bool _saving = false;
 
   @override
@@ -56,17 +60,31 @@ class _WeeklyCheckInScreenState extends ConsumerState<WeeklyCheckInScreen> {
   }
 
   Future<void> _capture(bool front) async {
-    final result = await ref.read(cameraServiceProvider).capturePhoto();
-    if (result == null || !mounted) return;
-    setState(() => front ? _frontCaptured = true : _sideCaptured = true);
-    final bytes = await ref.read(imageCompressionProvider).compress(result.bytes);
-    final url = await ref.read(imageUploadServiceProvider).upload(
-          bytes,
-          storageKey: 'progress/${front ? 'front' : 'side'}',
-          mimeType: result.mimeType,
-        );
-    if (!mounted) return;
-    setState(() => front ? _frontUrl = url : _sideUrl = url);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final XFile? x = await ImagePicker()
+          .pickImage(source: ImageSource.camera, maxWidth: 1080, imageQuality: 70);
+      if (x == null) return;
+      final data = base64Encode(await x.readAsBytes());
+      // Save to the shared progress-photo gallery (Week N · Front/Side).
+      ref
+          .read(progressPhotosProvider.notifier)
+          .add('${front ? 'Front' : 'Side'} · Week $_weekNumber', data);
+      if (!mounted) return;
+      setState(() {
+        if (front) {
+          _frontCaptured = true;
+          _frontData = data;
+        } else {
+          _sideCaptured = true;
+          _sideData = data;
+        }
+      });
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not capture photo on this device.')),
+      );
+    }
   }
 
   Future<void> _submit() async {
@@ -84,8 +102,8 @@ class _WeeklyCheckInScreenState extends ConsumerState<WeeklyCheckInScreen> {
       weekNumber: _weekNumber,
       weightKg: weight,
       waistCm: waist,
-      frontPhotoUrl: _frontUrl,
-      sidePhotoUrl: _sideUrl,
+      frontPhotoUrl: _frontCaptured ? 'gallery' : null,
+      sidePhotoUrl: _sideCaptured ? 'gallery' : null,
       energy: _energy,
       sleep: _sleep,
       digestion: _digestion,
@@ -97,6 +115,9 @@ class _WeeklyCheckInScreenState extends ConsumerState<WeeklyCheckInScreen> {
 
     await ref.read(weeklyCheckinRepositoryProvider).submit(uid, checkin);
     await ref.read(participantProvider.notifier).updateWeight(weight);
+    // Feed the weight/waist into the measurement trends on the Progress tab.
+    ref.read(measurementsProvider.notifier).add(
+        weightKg: weight, waistCm: waist > 0 ? waist : null);
 
     if (!mounted) return;
     setState(() => _saving = false);
@@ -193,8 +214,7 @@ class _WeeklyCheckInScreenState extends ConsumerState<WeeklyCheckInScreen> {
               Expanded(
                 child: _PhotoCapture(
                   label: l.photoFront,
-                  captured: _frontCaptured,
-                  uploaded: _frontUrl != null,
+                  imageData: _frontData,
                   onTap: () => _capture(true),
                 ),
               ),
@@ -202,8 +222,7 @@ class _WeeklyCheckInScreenState extends ConsumerState<WeeklyCheckInScreen> {
               Expanded(
                 child: _PhotoCapture(
                   label: l.photoSide,
-                  captured: _sideCaptured,
-                  uploaded: _sideUrl != null,
+                  imageData: _sideData,
                   onTap: () => _capture(false),
                 ),
               ),
@@ -277,19 +296,50 @@ class _WeeklyCheckInScreenState extends ConsumerState<WeeklyCheckInScreen> {
 class _PhotoCapture extends StatelessWidget {
   const _PhotoCapture({
     required this.label,
-    required this.captured,
-    required this.uploaded,
+    required this.imageData,
     required this.onTap,
   });
 
   final String label;
-  final bool captured;
-  final bool uploaded;
+  final String? imageData; // base64 preview, or null if not captured yet
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    if (imageData != null) {
+      return GestureDetector(
+        onTap: onTap,
+        child: SizedBox(
+          height: 120,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ClipRRect(
+                borderRadius: AppRadius.card,
+                child: Image.memory(base64Decode(imageData!),
+                    fit: BoxFit.cover),
+              ),
+              Positioned(
+                left: 6,
+                bottom: 6,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Text('${l.photoLabel(label)} · retake',
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 11)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return GlassCard(
       onTap: onTap,
       child: SizedBox(
@@ -297,22 +347,13 @@ class _PhotoCapture extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              uploaded
-                  ? Icons.check_circle_rounded
-                  : (captured ? Icons.cloud_upload_rounded : Icons.add_a_photo_rounded),
-              size: 34,
-              color: uploaded ? AppColors.success : AppColors.primary,
-            ),
+            const Icon(Icons.add_a_photo_rounded,
+                size: 34, color: AppColors.primary),
             const SizedBox(height: AppSpacing.sm),
             Text(l.photoLabel(label),
                 style: Theme.of(context).textTheme.titleSmall),
-            Text(
-              uploaded
-                  ? l.photoUploaded
-                  : (captured ? l.photoUploading : l.photoTapCapture),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            Text(l.photoTapCapture,
+                style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ),

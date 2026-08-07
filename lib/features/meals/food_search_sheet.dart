@@ -43,12 +43,15 @@ class _FoodSearchSheetState extends State<_FoodSearchSheet> {
   String _cat = 'All';
 
   static const List<String> _catFilters = [
-    'All', 'Veg', 'Non-veg', 'Breakfast', 'Mains', 'Snacks', 'Sweets', 'Drinks',
+    'All', 'DayJoy', 'Veg', 'Non-veg', 'Breakfast', 'Mains', 'Snacks',
+    'Sweets', 'Drinks',
   ];
 
   bool _passesCat(FoodItem f) {
     final String c = f.category.toLowerCase();
     switch (_cat) {
+      case 'DayJoy':
+        return c.contains('dayjoy') || c.contains('product');
       case 'Veg':
         return f.isVeg;
       case 'Non-veg':

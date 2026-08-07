@@ -9,6 +9,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../state/achievements_provider.dart';
 import '../../state/locale_provider.dart';
 import '../../state/providers.dart';
 import '../../data/models/appointment.dart';
@@ -85,6 +86,15 @@ class ProfileScreen extends ConsumerWidget {
               _MiniStat(
                   label: 'BMI', value: participant.bmi.toStringAsFixed(1)),
             ],
+          ),
+          const SizedBox(height: AppSpacing.xl),
+
+          // Achievements shelf
+          _AchievementsShelf(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                  builder: (_) => const BadgesGalleryScreen()),
+            ),
           ),
           const SizedBox(height: AppSpacing.xl),
 
@@ -349,6 +359,71 @@ class _NavRow extends StatelessWidget {
         if (!last)
           const Divider(height: 1, indent: 56, endIndent: 16),
       ],
+    );
+  }
+}
+
+/// Compact badge shelf on the profile: unlocked count + a row of badge icons.
+class _AchievementsShelf extends ConsumerWidget {
+  const _AchievementsShelf({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final views = ref.watch(achievementsProvider);
+    final int earnedCount = ref.watch(earnedCountProvider);
+    final TextTheme text = Theme.of(context).textTheme;
+
+    // Show earned badges first, then the closest locked ones, up to 5 slots.
+    final earned = views.where((v) => v.earned).toList();
+    final locked = views.where((v) => !v.earned).toList()
+      ..sort((a, b) => b.progress.compareTo(a.progress));
+    final shelf = [...earned, ...locked].take(5).toList();
+
+    return GlassCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.workspace_premium_rounded,
+                  color: AppColors.orange, size: 22),
+              const SizedBox(width: AppSpacing.sm),
+              Text('Achievements', style: text.titleMedium),
+              const Spacer(),
+              Text('$earnedCount / ${views.length}',
+                  style: text.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary)),
+              const Icon(Icons.chevron_right_rounded,
+                  color: AppColors.textSecondary),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              for (final v in shelf) ...[
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: v.earned ? AppColors.goldGradient : null,
+                    color: v.earned ? null : AppColors.surfaceMuted,
+                  ),
+                  child: Icon(
+                    v.earned ? v.def.icon : Icons.lock_rounded,
+                    size: 20,
+                    color:
+                        v.earned ? Colors.white : AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

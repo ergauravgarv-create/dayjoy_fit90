@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -14,9 +16,15 @@ import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/stat_tile.dart';
 import '../../shared/widgets/weight_line_chart.dart';
 import '../../data/models/participant.dart';
+import '../../state/measurements_provider.dart';
+import '../../state/progress_photos_provider.dart';
 import '../../state/providers.dart';
 import '../../state/report_providers.dart';
+import '../../state/repository_providers.dart';
+import '../../state/trend_analytics.dart';
 import '../../state/water_provider.dart';
+import 'progress_photos_screen.dart';
+import 'share_card_screen.dart';
 
 class ProgressScreen extends ConsumerWidget {
   const ProgressScreen({super.key});
@@ -38,14 +46,48 @@ class ProgressScreen extends ConsumerWidget {
       for (final r in reports)
         if (r.endWeightKg != null) r.endWeightKg!,
     ];
-    final List<double> series = reportWeights.length >= 2
-        ? reportWeights
-        : ref.watch(weightSeriesProvider);
+    // Prefer the participant's own logged measurements when available.
+    final measurements = ref.watch(measurementsProvider);
+    final List<double> loggedWeights =
+        measurements.map((m) => m.weightKg).toList();
+    final List<double> loggedWaists =
+        measurements.where((m) => m.waistCm != null).map((m) => m.waistCm!).toList();
+
+    final List<double> series = loggedWeights.length >= 2
+        ? loggedWeights
+        : (reportWeights.length >= 2
+            ? reportWeights
+            : ref.watch(weightSeriesProvider));
 
     final NumberFormat n = NumberFormat.decimalPattern();
 
+    final TrendAnalytics trends = computeTrends(
+      startWeight: participant.startWeightKg,
+      currentWeight: participant.currentWeightKg,
+      targetWeight: participant.targetWeightKg,
+      heightCm: participant.heightCm,
+      startDate: participant.startDate,
+      currentDay: participant.currentDay,
+      logs: [for (final m in measurements) WeightLog(m.date, m.weightKg)],
+      weightSeries: series,
+      now: DateTime.now(),
+    );
+    final int streak = ref.watch(streakProvider);
+
     return Scaffold(
-      appBar: AppBar(title: Text(l.progressTitle)),
+      appBar: AppBar(
+        title: Text(l.progressTitle),
+        actions: [
+          IconButton(
+            tooltip: 'Share progress',
+            icon: const Icon(Icons.ios_share_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                  builder: (_) => const ShareCardScreen()),
+            ),
+          ),
+        ],
+      ),
       body: ListView(
         padding:
             const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 100),
@@ -86,10 +128,40 @@ class ProgressScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.xl),
 
-          SectionHeader(title: l.homeWeightTrend),
+          const SectionHeader(title: 'Insights'),
+          const SizedBox(height: AppSpacing.md),
+          _InsightsCard(trends: trends, streak: streak, participant: participant),
+          const SizedBox(height: AppSpacing.xl),
+
+          Row(
+            children: [
+              Expanded(child: SectionHeader(title: l.homeWeightTrend)),
+              TextButton.icon(
+                onPressed: () => _logMeasurement(context, ref, participant),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Log'),
+              ),
+            ],
+          ),
           const SizedBox(height: AppSpacing.md),
           GlassCard(child: WeightLineChart(values: series, height: 200)),
           const SizedBox(height: AppSpacing.xl),
+
+          if (trends.bmiSeries.length >= 2) ...[
+            const SectionHeader(title: 'BMI trend'),
+            const SizedBox(height: AppSpacing.md),
+            GlassCard(
+                child:
+                    WeightLineChart(values: trends.bmiSeries, height: 160)),
+            const SizedBox(height: AppSpacing.xl),
+          ],
+
+          if (loggedWaists.length >= 2) ...[
+            const SectionHeader(title: 'Waist trend (cm)'),
+            const SizedBox(height: AppSpacing.md),
+            GlassCard(child: WeightLineChart(values: loggedWaists, height: 160)),
+            const SizedBox(height: AppSpacing.xl),
+          ],
 
           // Water — today + last 7 days
           const SectionHeader(title: 'Water intake'),
@@ -115,31 +187,7 @@ class ProgressScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.md),
           _BeforeAfterCard(participant: participant),
           const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            height: 130,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: 4,
-              separatorBuilder: (_, __) =>
-                  const SizedBox(width: AppSpacing.md),
-              itemBuilder: (context, i) => Container(
-                width: 100,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.photo_camera_back_rounded,
-                        color: AppColors.textSecondary, size: 30),
-                    const SizedBox(height: 6),
-                    Text(l.weekShort(i + 1), style: text.bodySmall),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          const _ProgressPhotosCard(),
           const SizedBox(height: AppSpacing.xl),
 
           SectionHeader(title: l.thisWeek),
@@ -276,6 +324,132 @@ class _BeforeAfterCard extends StatelessWidget {
   }
 }
 
+class _InsightsCard extends StatelessWidget {
+  const _InsightsCard(
+      {required this.trends, required this.streak, required this.participant});
+  final TrendAnalytics trends;
+  final int streak;
+  final Participant participant;
+
+  ({String label, Color color}) get _pace => switch (trends.pace) {
+        'ahead' => (label: 'Ahead of plan', color: AppColors.success),
+        'onTrack' => (label: 'On track', color: AppColors.primary),
+        'slow' => (label: 'Behind plan', color: AppColors.orange),
+        _ => (label: 'Getting started', color: AppColors.textSecondary),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme text = Theme.of(context).textTheme;
+    final pace = _pace;
+    final double chg = trends.weeklyChangeKg;
+    final bool losing = chg < 0;
+
+    final String projection = trends.goalReached
+        ? '🎉 Target reached!'
+        : (trends.projectedGoalDate != null
+            ? '${DateFormat('d MMM yyyy').format(trends.projectedGoalDate!)} · ~${trends.daysToGoal} days'
+            : 'Keep logging to project a date');
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: pace.color.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                child: Text(pace.label,
+                    style: text.bodySmall?.copyWith(
+                        color: pace.color, fontWeight: FontWeight.w800)),
+              ),
+              const Spacer(),
+              Text('Target ${participant.targetWeightKg.toStringAsFixed(0)} kg',
+                  style: text.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary)),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _InsightRow(
+            icon: losing
+                ? Icons.trending_down_rounded
+                : Icons.trending_up_rounded,
+            iconColor: losing ? AppColors.success : AppColors.error,
+            label: 'This week',
+            value: '${chg <= 0 ? '−' : '+'}${chg.abs().toStringAsFixed(1)} kg',
+          ),
+          _InsightRow(
+            icon: Icons.speed_rounded,
+            iconColor: AppColors.primary,
+            label: 'Average pace',
+            value: '${trends.weeklyRateKg.toStringAsFixed(1)} kg / week',
+          ),
+          _InsightRow(
+            icon: Icons.flag_rounded,
+            iconColor: AppColors.accent,
+            label: 'Projected goal',
+            value: projection,
+          ),
+          _InsightRow(
+            icon: Icons.local_fire_department_rounded,
+            iconColor: AppColors.orange,
+            label: 'Current streak',
+            value: '$streak days',
+            last: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightRow extends StatelessWidget {
+  const _InsightRow({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+    this.last = false,
+  });
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme text = Theme.of(context).textTheme;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: iconColor),
+              const SizedBox(width: AppSpacing.sm),
+              Text(label, style: text.bodyMedium),
+              const Spacer(),
+              Flexible(
+                child: Text(value,
+                    style: text.titleSmall,
+                    textAlign: TextAlign.right,
+                    overflow: TextOverflow.ellipsis),
+              ),
+            ],
+          ),
+        ),
+        if (!last) const Divider(height: 1),
+      ],
+    );
+  }
+}
+
 class _WaterProgressCard extends ConsumerWidget {
   const _WaterProgressCard();
 
@@ -374,6 +548,145 @@ class _WeeklyRow extends StatelessWidget {
           ),
         ),
         if (!last) const Divider(height: 1),
+      ],
+    );
+  }
+}
+
+Future<void> _logMeasurement(
+    BuildContext context, WidgetRef ref, Participant participant) async {
+  final weightCtrl = TextEditingController(
+      text: participant.currentWeightKg.toStringAsFixed(1));
+  final waistCtrl =
+      TextEditingController(text: participant.waistCm?.toStringAsFixed(0) ?? '');
+
+  final bool? ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Log measurement'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: weightCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Weight (kg)'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: waistCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Waist (cm, optional)'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel')),
+        FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Save')),
+      ],
+    ),
+  );
+
+  if (ok == true) {
+    final w = double.tryParse(weightCtrl.text.trim());
+    final waist = double.tryParse(waistCtrl.text.trim());
+    if (w != null && w > 0) {
+      ref.read(measurementsProvider.notifier).add(weightKg: w, waistCm: waist);
+      await ref.read(participantRepositoryProvider).updateWeight(participant.id, w);
+      ref.invalidate(participantProvider);
+    }
+  }
+  weightCtrl.dispose();
+  waistCtrl.dispose();
+}
+
+/// Home card linking to the progress-photos gallery, showing before/after.
+class _ProgressPhotosCard extends ConsumerWidget {
+  const _ProgressPhotosCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final photos = ref.watch(progressPhotosProvider);
+    final TextTheme text = Theme.of(context).textTheme;
+    return GlassCard(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const ProgressPhotosScreen()),
+      ),
+      child: photos.length >= 2
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('Your photos', style: text.titleMedium),
+                    const Spacer(),
+                    Text('Manage',
+                        style: text.bodySmall
+                            ?.copyWith(color: AppColors.primary)),
+                    const Icon(Icons.chevron_right_rounded, size: 18),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    Expanded(child: _photo(photos.first.data, 'First')),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Icon(Icons.arrow_forward_rounded,
+                          color: AppColors.textSecondary),
+                    ),
+                    Expanded(
+                        child: _photo(photos.last.data, 'Latest',
+                            highlight: true)),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: AppColors.primary.withOpacity(0.12),
+                  child: const Icon(Icons.add_a_photo_rounded,
+                      color: AppColors.primary),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Progress photos', style: text.titleMedium),
+                      Text('Add photos to build your before/after',
+                          style: text.bodySmall),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded),
+              ],
+            ),
+    );
+  }
+
+  Widget _photo(String data, String caption, {bool highlight = false}) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 130,
+          width: double.infinity,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: Image.memory(base64Decode(data), fit: BoxFit.cover),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(caption,
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: highlight ? AppColors.primary : AppColors.textSecondary)),
       ],
     );
   }

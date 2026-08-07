@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../state/points_ledger_provider.dart';
 import '../../state/providers.dart';
 import '../badges/badges_gallery_screen.dart';
 
@@ -83,6 +85,7 @@ class RewardsScreen extends ConsumerWidget {
     final participant = ref.watch(participantProvider);
     final int points = participant?.totalPoints ?? 0;
     final int streak = ref.watch(streakProvider);
+    final List<LedgerEntry> ledger = ref.watch(combinedLedgerProvider);
     final TextTheme text = Theme.of(context).textTheme;
 
     final int achieved = _milestones
@@ -162,7 +165,41 @@ class RewardsScreen extends ConsumerWidget {
               value: _progressValue(m, points, streak),
             ),
 
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            children: [
+              Text('Points history', style: text.titleMedium),
+              const Spacer(),
+              if (ledger.isNotEmpty)
+                Text('+${ledger.fold(0, (s, e) => s + e.points)} earned in-app',
+                    style: text.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary)),
+            ],
+          ),
           const SizedBox(height: AppSpacing.md),
+          if (ledger.isEmpty)
+            GlassCard(
+              child: Text(
+                'Complete your daily tasks and weekly challenges to start '
+                'earning points — your history will appear here.',
+                style: text.bodySmall
+                    ?.copyWith(color: AppColors.textSecondary),
+              ),
+            )
+          else
+            GlassCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  for (final e in ledger.take(20))
+                    _LedgerRow(
+                        entry: e,
+                        last: e == ledger.take(20).last),
+                ],
+              ),
+            ),
+
+          const SizedBox(height: AppSpacing.xl),
           GlassCard(
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
@@ -216,6 +253,57 @@ class _HeaderStat extends StatelessWidget {
               style: const TextStyle(color: Colors.white70, fontSize: 12)),
         ],
       ),
+    );
+  }
+}
+
+class _LedgerRow extends StatelessWidget {
+  const _LedgerRow({required this.entry, required this.last});
+  final LedgerEntry entry;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme text = Theme.of(context).textTheme;
+    final bool isChallenge = entry.source.startsWith('Challenge');
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+          child: Row(
+            children: [
+              Icon(
+                  isChallenge
+                      ? Icons.flag_rounded
+                      : Icons.check_circle_rounded,
+                  color: isChallenge ? AppColors.accent : AppColors.success,
+                  size: 20),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(entry.source,
+                        style: text.titleSmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                    Text(DateFormat('d MMM, h:mm a').format(entry.date),
+                        style: text.bodySmall
+                            ?.copyWith(color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text('+${entry.points}',
+                  style: text.titleMedium
+                      ?.copyWith(color: AppColors.primary)),
+            ],
+          ),
+        ),
+        if (!last)
+          const Divider(height: 1, indent: 16, endIndent: 16),
+      ],
     );
   }
 }

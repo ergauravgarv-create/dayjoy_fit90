@@ -109,6 +109,11 @@ class _ConnectHealthScreenState extends ConsumerState<ConnectHealthScreen> {
               _MetricRow(
                   label: l.metricWorkout,
                   value: '${state.workoutMinutes} min'),
+            if (state.sleepMinutes != null)
+              _MetricRow(
+                  label: 'Sleep (last night)',
+                  value:
+                      '${state.sleepMinutes! ~/ 60}h ${state.sleepMinutes! % 60}m'),
             _MetricRow(
               label: l.metricLastSynced,
               value: state.lastSyncAt == null

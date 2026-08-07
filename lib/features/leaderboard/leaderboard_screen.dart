@@ -18,7 +18,32 @@ class LeaderboardScreen extends ConsumerStatefulWidget {
 }
 
 class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
-  int _scope = 0; // 0 = All India, 1 = My City
+  int _scope = 0; // 0 = All India, 1 = My City, 2 = Get inspired
+  int _period = 0; // 0 = All-time, 1 = This week
+
+  int _pts(LeaderboardEntry e) => _period == 1 ? e.weeklyPoints : e.points;
+
+  /// Rank-movement indicator (▲/▼ vs last week, or a dash for no change).
+  Widget _movement(int previousRank, int rank) {
+    if (previousRank == 0) return const SizedBox(height: 14);
+    final int delta = previousRank - rank; // positive = climbed
+    if (delta == 0) {
+      return const Icon(Icons.remove_rounded,
+          size: 12, color: AppColors.textSecondary);
+    }
+    final bool up = delta > 0;
+    final Color c = up ? AppColors.success : AppColors.error;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(up ? Icons.arrow_drop_up_rounded : Icons.arrow_drop_down_rounded,
+            size: 16, color: c),
+        Text('${delta.abs()}',
+            style: TextStyle(
+                fontSize: 10, fontWeight: FontWeight.w700, color: c)),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,10 +52,18 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
     final TextTheme text = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context);
 
-    // Apply the city scope; ranks are then re-numbered by position.
+    // Rank everyone by the selected period, then optionally filter by city.
+    final List<LeaderboardEntry> ranked = [...allEntries]
+      ..sort((a, b) => _pts(b).compareTo(_pts(a)));
     final List<LeaderboardEntry> entries = (_scope == 1 && myCity != null)
-        ? allEntries.where((e) => e.city == myCity).toList()
-        : allEntries;
+        ? ranked.where((e) => e.city == myCity).toList()
+        : ranked;
+
+    // Current user's standing across everyone (for the percentile banner).
+    final int userIdx = ranked.indexWhere((e) => e.isCurrentUser);
+    final int? topPct = userIdx >= 0 && ranked.isNotEmpty
+        ? (((userIdx + 1) / ranked.length) * 100).ceil()
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -77,6 +110,54 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
               ],
             ),
           ),
+
+          // All-time / This week toggle (ranking scopes only)
+          if (_scope != 2) ...[
+            const SizedBox(height: AppSpacing.md),
+            Padding(
+              padding: AppSpacing.page,
+              child: SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment(
+                      value: 0,
+                      label: Text('All-time'),
+                      icon: Icon(Icons.emoji_events_rounded, size: 16)),
+                  ButtonSegment(
+                      value: 1,
+                      label: Text('This week'),
+                      icon: Icon(Icons.date_range_rounded, size: 16)),
+                ],
+                selected: {_period},
+                onSelectionChanged: (s) =>
+                    setState(() => _period = s.first),
+              ),
+            ),
+            if (topPct != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Padding(
+                padding: AppSpacing.page,
+                child: GlassCard(
+                  gradient: AppColors.goldGradient,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.trending_up_rounded,
+                          color: Colors.white, size: 30),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Text(
+                          'You\'re in the top $topPct% ${_period == 1 ? 'this week' : 'overall'}',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
           const SizedBox(height: AppSpacing.md),
 
           if (_scope != 2 && entries.isEmpty)
@@ -128,12 +209,18 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                     child: Row(
                       children: [
                         SizedBox(
-                          width: 28,
-                          child: Text('#${i + 1}',
-                              style: text.titleMedium?.copyWith(
-                                  color: i < 3
-                                      ? AppColors.accent
-                                      : AppColors.textSecondary)),
+                          width: 34,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('#${i + 1}',
+                                  style: text.titleMedium?.copyWith(
+                                      color: i < 3
+                                          ? AppColors.accent
+                                          : AppColors.textSecondary)),
+                              _movement(e.previousRank, i + 1),
+                            ],
+                          ),
                         ),
                         CircleAvatar(
                           radius: 20,
@@ -163,7 +250,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                             ],
                           ),
                         ),
-                        Text('${e.points}',
+                        Text('${_pts(e)}',
                             style: text.titleMedium
                                 ?.copyWith(color: AppColors.primary)),
                         Text(' ${l.ptsSuffix}', style: text.bodySmall),

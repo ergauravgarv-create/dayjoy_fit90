@@ -9,6 +9,7 @@ import '../data/models/daily_task.dart';
 import '../data/models/leaderboard_entry.dart';
 import '../data/models/participant.dart';
 import '../data/repositories/auth_repository.dart';
+import 'health_providers.dart';
 import 'repository_providers.dart';
 import 'water_provider.dart';
 
@@ -281,6 +282,25 @@ final dailyQuoteProvider = Provider<String>((ref) {
   return AppConstants.motivationalQuotes[idx];
 });
 
-/// Today's synced step count. Replace with the health engine's value in a later
-/// wiring pass; kept here so existing screens compile unchanged.
-final stepsProvider = Provider<int>((ref) => 8450);
+/// Today's step count from the real health engine (Health Connect on Android,
+/// HealthKit on iOS; a deterministic mock on web/desktop). Reflects the live
+/// [healthConnectionControllerProvider] — 0 until the participant connects.
+final stepsProvider = Provider<int>((ref) {
+  return ref.watch(healthConnectionControllerProvider).todaySteps;
+});
+
+/// Whether the health source is connected & granted (drives the home step tile
+/// "tap to connect" affordance).
+final stepsConnectedProvider = Provider<bool>((ref) {
+  return ref.watch(healthConnectionControllerProvider).connected;
+});
+
+/// Active calories burned today (kcal), or null until synced.
+final activeCaloriesProvider = Provider<int?>((ref) {
+  return ref.watch(healthConnectionControllerProvider).activeCalories?.round();
+});
+
+/// Total sleep last night, in minutes, or null until synced.
+final sleepMinutesProvider = Provider<int?>((ref) {
+  return ref.watch(healthConnectionControllerProvider).sleepMinutes;
+});

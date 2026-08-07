@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../state/diet_chart_provider.dart';
 import '../../state/diet_plan_provider.dart';
 import '../../state/meal_provider.dart';
 import '../../state/providers.dart';
+import '../diet_charts/diet_chart_detail_screen.dart';
 import 'diet_plan.dart';
 import 'meal_data.dart';
 
@@ -47,6 +49,28 @@ class _MyDietPlanScreenState extends ConsumerState<MyDietPlanScreen> {
   @override
   Widget build(BuildContext context) {
     final p = ref.watch(participantProvider);
+
+    // A consultant-assigned clinical diet chart takes priority.
+    final String? chartId =
+        p == null ? null : ref.watch(assignedChartProvider)[p.id];
+    if (chartId != null) {
+      final chartsAsync = ref.watch(dietChartsProvider);
+      final charts = chartsAsync.valueOrNull;
+      if (charts != null) {
+        for (final c in charts) {
+          if (c.id == chartId) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('My Diet Chart')),
+              body: DietChartView(chart: c, consultant: false),
+            );
+          }
+        }
+      } else if (chartsAsync.isLoading) {
+        return const Scaffold(
+            body: Center(child: CircularProgressIndicator()));
+      }
+    }
+
     final plan = p == null ? null : ref.watch(dietPlanProvider)[p.id];
     final bool ready = plan != null && plan.isApproved;
 

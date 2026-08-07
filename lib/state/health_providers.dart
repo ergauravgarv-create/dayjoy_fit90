@@ -76,6 +76,7 @@ class HealthConnectionState {
     this.distanceKm,
     this.activeCalories,
     this.workoutMinutes,
+    this.sleepMinutes,
     this.lastSyncAt,
     this.error,
     this.integrationType = IntegrationType.none,
@@ -88,6 +89,7 @@ class HealthConnectionState {
   final double? distanceKm;
   final double? activeCalories;
   final int? workoutMinutes;
+  final int? sleepMinutes;
   final DateTime? lastSyncAt;
   final String? error;
   final IntegrationType integrationType;
@@ -104,6 +106,7 @@ class HealthConnectionState {
     double? distanceKm,
     double? activeCalories,
     int? workoutMinutes,
+    int? sleepMinutes,
     DateTime? lastSyncAt,
     String? error,
     IntegrationType? integrationType,
@@ -116,6 +119,7 @@ class HealthConnectionState {
       distanceKm: distanceKm ?? this.distanceKm,
       activeCalories: activeCalories ?? this.activeCalories,
       workoutMinutes: workoutMinutes ?? this.workoutMinutes,
+      sleepMinutes: sleepMinutes ?? this.sleepMinutes,
       lastSyncAt: lastSyncAt ?? this.lastSyncAt,
       error: error,
       integrationType: integrationType ?? this.integrationType,
@@ -133,6 +137,10 @@ class HealthConnectionController extends Notifier<HealthConnectionState> {
   @override
   HealthConnectionState build() {
     final service = ref.watch(healthServiceProvider);
+    // Fire-and-forget: read availability/permission (and sync if already
+    // granted) the first time anything watches this. No OS prompt is shown —
+    // refresh() only reads status; connect() is what asks for permission.
+    Future.microtask(refresh);
     return HealthConnectionState(integrationType: service.integrationType);
   }
 
@@ -183,6 +191,7 @@ class HealthConnectionController extends Notifier<HealthConnectionState> {
       distanceKm: record.distanceKm,
       activeCalories: record.activeCalories,
       workoutMinutes: record.workoutMinutes,
+      sleepMinutes: record.sleepMinutes,
       lastSyncAt: record.lastSyncAt,
       permission: record.permissionStatus,
     );

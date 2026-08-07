@@ -15,7 +15,9 @@ import '../../shared/widgets/weight_line_chart.dart';
 import '../../state/engagement_providers.dart';
 import '../../state/meal_provider.dart';
 import '../../state/providers.dart';
+import '../explore/explore_screen.dart';
 import '../health/bmi_report_screen.dart';
+import '../health/connect_health_screen.dart';
 import '../meals/meal_tracker_screen.dart';
 import '../meals/my_diet_plan_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -38,6 +40,9 @@ class HomeScreen extends ConsumerWidget {
     final double completion = ref.watch(completionProvider);
     final int streak = ref.watch(streakProvider);
     final int steps = ref.watch(stepsProvider);
+    final bool stepsConnected = ref.watch(stepsConnectedProvider);
+    final int? sleepMin = ref.watch(sleepMinutesProvider);
+    final int? activeCal = ref.watch(activeCaloriesProvider);
     final String quote = ref.watch(dailyQuoteProvider);
     final leaderboard = ref.watch(leaderboardProvider);
     final int unread = ref.watch(unreadCountProvider);
@@ -183,15 +188,52 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   StatTile(
                     icon: Icons.directions_walk_rounded,
-                    value: '$steps',
+                    value: stepsConnected ? '$steps' : 'Connect',
                     label: l.homeStepsToday,
                     color: AppColors.taskSteps,
+                    onTap: stepsConnected
+                        ? null
+                        : () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const ConnectHealthScreen(),
+                              ),
+                            ),
                   ),
                   StatTile(
                     icon: Icons.emoji_events_rounded,
                     value: '#$rank',
                     label: l.homeLeaderboardRank,
                     color: AppColors.taskYoga,
+                  ),
+                  StatTile(
+                    icon: Icons.local_fire_department_rounded,
+                    value: activeCal != null
+                        ? '$activeCal'
+                        : (stepsConnected ? '—' : 'Connect'),
+                    label: 'Calories burned',
+                    color: AppColors.orange,
+                    onTap: stepsConnected
+                        ? null
+                        : () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const ConnectHealthScreen(),
+                              ),
+                            ),
+                  ),
+                  StatTile(
+                    icon: Icons.bedtime_rounded,
+                    value: sleepMin != null
+                        ? '${sleepMin ~/ 60}h ${sleepMin % 60}m'
+                        : (stepsConnected ? '—' : 'Connect'),
+                    label: 'Sleep last night',
+                    color: AppColors.info,
+                    onTap: stepsConnected
+                        ? null
+                        : () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const ConnectHealthScreen(),
+                              ),
+                            ),
                   ),
                 ],
               ),
@@ -285,6 +327,44 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
                     const Icon(Icons.chevron_right_rounded),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              // Explore all tools
+              GlassCard(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const ExploreScreen()),
+                ),
+                gradient: AppColors.mixGradient,
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      backgroundColor: Colors.white24,
+                      child:
+                          Icon(Icons.grid_view_rounded, color: Colors.white),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('Explore all tools',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800)),
+                          Text(
+                              'Workouts, mindfulness, community, fasting & more',
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded,
+                        color: Colors.white),
                   ],
                 ),
               ),

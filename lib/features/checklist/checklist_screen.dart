@@ -7,8 +7,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../state/points_ledger_provider.dart';
 import '../../state/providers.dart';
 import '../../state/water_provider.dart';
+import '../workouts/workout_library_screen.dart';
 import 'activity_submission_screen.dart';
 import 'step_task_screen.dart';
 import 'widgets/task_tile.dart';
@@ -31,6 +33,9 @@ class _ChecklistScreenState extends ConsumerState<ChecklistScreen> {
   }
 
   void _celebrate() {
+    ref
+        .read(pointsLedgerProvider.notifier)
+        .add('Completed all daily tasks', AppConstants.dailyPointsTotal);
     _confetti.play();
     showDialog<void>(
       context: context,
@@ -53,6 +58,15 @@ class _ChecklistScreenState extends ConsumerState<ChecklistScreen> {
       success = await Navigator.of(context).push<bool>(
             MaterialPageRoute(
               builder: (_) => StepTaskScreen(challengeDay: day),
+            ),
+          ) ??
+          false;
+    } else if (type == DailyTaskType.fitnessActivity) {
+      // The exercise task is completed by finishing a guided workout.
+      success = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(
+              builder: (_) =>
+                  const WorkoutLibraryScreen(forTaskCompletion: true),
             ),
           ) ??
           false;
@@ -85,8 +99,8 @@ class _ChecklistScreenState extends ConsumerState<ChecklistScreen> {
   /// Adjusts water and celebrates if this is what completed the whole day.
   void _changeWater(int delta) {
     final bool wasAllDone = _daySixDone();
-    final notifier = ref.read(waterProvider.notifier);
-    delta > 0 ? notifier.add() : notifier.remove();
+    final notifier = ref.read(waterMlProvider.notifier);
+    delta > 0 ? notifier.addGlass() : notifier.removeGlass();
     if (!wasAllDone && _daySixDone()) _celebrate();
   }
 

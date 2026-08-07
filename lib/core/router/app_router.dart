@@ -8,6 +8,7 @@ import '../../features/checklist/checklist_screen.dart';
 import '../../features/registration/registration_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/leaderboard/leaderboard_screen.dart';
+import '../../features/onboarding/goal_plan_screen.dart';
 import '../../features/onboarding/language_select_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/onboarding/transformation_intro_screen.dart';
@@ -28,6 +29,7 @@ abstract final class Routes {
   static const String login = '/login';
   static const String otp = '/otp';
   static const String register = '/register';
+  static const String goalSetup = '/goal-setup';
   static const String transformationIntro = '/transformation-intro';
   static const String weeklyCheckin = '/weekly-checkin';
 
@@ -80,6 +82,9 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
         path: Routes.register,
         builder: (_, __) => const RegistrationScreen()),
+    GoRoute(
+        path: Routes.goalSetup,
+        builder: (_, __) => const GoalPlanScreen(onboarding: true)),
     GoRoute(
         path: Routes.transformationIntro,
         builder: (_, __) => const TransformationIntroScreen()),

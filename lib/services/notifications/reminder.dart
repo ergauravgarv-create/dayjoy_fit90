@@ -4,7 +4,29 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// The daily habits a participant can be reminded about.
-enum ReminderKind { morningYoga, breakfast, lunch, dinner, water, steps }
+/// New kinds are appended at the END so existing notification ids (index-based)
+/// stay stable across updates.
+enum ReminderKind {
+  morningYoga,
+  breakfast,
+  lunch,
+  dinner,
+  water,
+  steps,
+  workout,
+  mindfulness,
+}
+
+/// Groups reminders into schedule sections on the screen.
+enum ReminderCategory { movement, meals, wellness }
+
+extension ReminderCategoryX on ReminderCategory {
+  String get label => switch (this) {
+        ReminderCategory.movement => 'Movement',
+        ReminderCategory.meals => 'Meals',
+        ReminderCategory.wellness => 'Wellness',
+      };
+}
 
 extension ReminderKindX on ReminderKind {
   String get label => switch (this) {
@@ -14,6 +36,8 @@ extension ReminderKindX on ReminderKind {
         ReminderKind.dinner => 'Dinner',
         ReminderKind.water => 'Drink Water',
         ReminderKind.steps => 'Evening Walk / Steps',
+        ReminderKind.workout => 'Workout / Exercise',
+        ReminderKind.mindfulness => 'Mindfulness',
       };
 
   IconData get icon => switch (this) {
@@ -23,6 +47,19 @@ extension ReminderKindX on ReminderKind {
         ReminderKind.dinner => Icons.dinner_dining_rounded,
         ReminderKind.water => Icons.water_drop_rounded,
         ReminderKind.steps => Icons.directions_walk_rounded,
+        ReminderKind.workout => Icons.fitness_center_rounded,
+        ReminderKind.mindfulness => Icons.spa_rounded,
+      };
+
+  ReminderCategory get category => switch (this) {
+        ReminderKind.morningYoga => ReminderCategory.movement,
+        ReminderKind.workout => ReminderCategory.movement,
+        ReminderKind.steps => ReminderCategory.movement,
+        ReminderKind.breakfast => ReminderCategory.meals,
+        ReminderKind.lunch => ReminderCategory.meals,
+        ReminderKind.dinner => ReminderCategory.meals,
+        ReminderKind.water => ReminderCategory.wellness,
+        ReminderKind.mindfulness => ReminderCategory.wellness,
       };
 
   /// Notification body shown when the reminder fires.
@@ -38,6 +75,10 @@ extension ReminderKindX on ReminderKind {
           'Stay hydrated — have a glass of water and tap +1. 💧',
         ReminderKind.steps =>
           'Time to move! Get those 10,000 steps in. 🚶',
+        ReminderKind.workout =>
+          'Time for your workout — pick a routine and get moving! 💪',
+        ReminderKind.mindfulness =>
+          'Take a mindful minute — try a breathing exercise. 🧘',
       };
 
   TimeOfDay get defaultTime => switch (this) {
@@ -47,6 +88,8 @@ extension ReminderKindX on ReminderKind {
         ReminderKind.dinner => const TimeOfDay(hour: 20, minute: 0),
         ReminderKind.water => const TimeOfDay(hour: 11, minute: 0),
         ReminderKind.steps => const TimeOfDay(hour: 18, minute: 0),
+        ReminderKind.workout => const TimeOfDay(hour: 17, minute: 30),
+        ReminderKind.mindfulness => const TimeOfDay(hour: 21, minute: 30),
       };
 
   /// Stable notification id per reminder.

@@ -184,7 +184,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       Navigator.of(context).pop();
     } else {
       ref.read(authControllerProvider.notifier).markRegistered();
-      context.go(Routes.transformationIntro);
+      context.go(Routes.goalSetup);
     }
   }
 

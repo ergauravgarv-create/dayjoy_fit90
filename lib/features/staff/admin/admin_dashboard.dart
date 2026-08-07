@@ -8,6 +8,8 @@ import '../../../data/models/admin_models.dart';
 import '../../../data/models/health_enums.dart';
 import '../../../data/models/participant.dart';
 import '../../../l10n/gen/app_localizations.dart';
+import '../../diet_charts/diet_chart_assessment_screen.dart';
+import '../../diet_charts/diet_chart_library_screen.dart';
 import '../../meals/edit_diet_plan_screen.dart';
 import '../../../shared/widgets/glass_card.dart';
 import 'broadcast_screen.dart';
@@ -263,6 +265,31 @@ class _ParticipantsTabState extends ConsumerState<_ParticipantsTab> {
                   AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
               child: Text(p.name,
                   style: Theme.of(context).textTheme.titleLarge),
+            ),
+            ListTile(
+              leading: const Icon(Icons.assignment_turned_in_rounded,
+                  color: AppColors.info),
+              title: const Text('Assess & suggest chart'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) =>
+                          DietChartAssessmentScreen(participant: p)),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.menu_book_rounded,
+                  color: AppColors.info),
+              title: const Text('Browse chart library'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => DietChartLibraryScreen(participant: p)),
+                );
+              },
             ),
             ListTile(
               leading: const Icon(Icons.restaurant_menu_rounded,

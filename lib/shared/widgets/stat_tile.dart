@@ -11,17 +11,20 @@ class StatTile extends StatelessWidget {
     required this.value,
     required this.label,
     required this.color,
+    this.onTap,
   });
 
   final IconData icon;
   final String value;
   final String label;
   final Color color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
     return GlassCard(
+      onTap: onTap,
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

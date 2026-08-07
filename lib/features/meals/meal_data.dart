@@ -169,9 +169,16 @@ const List<FoodItem> kIndianFoods = [
   FoodItem(name: 'Mixed Fruit Bowl', serving: '1 bowl (~150g)', kcal: 90, protein: 1.5, carbs: 22, fat: 0.4, fibre: 4),
 
   // ---- Dayjoy program items ----
-  FoodItem(name: 'Ample Meal Shake', serving: '25g scoop', kcal: 100, protein: 8, carbs: 12, fat: 2, fibre: 3),
-  FoodItem(name: 'Vital Protein', serving: '10g scoop', kcal: 40, protein: 9, carbs: 0.5, fat: 0.3, fibre: 0),
-  FoodItem(name: 'Whey Protein Scoop', serving: '30g scoop', kcal: 120, protein: 24, carbs: 3, fat: 1.5, fibre: 0),
+  // ---- DayJoy company products (placeholder macros — confirm from labels) ----
+  FoodItem(name: 'Ample Meal Shake', category: 'DayJoy Product', serving: '1 scoop (~25g) in milk/water', kcal: 100, protein: 8, carbs: 12, fat: 2, fibre: 3),
+  FoodItem(name: 'Vital Protein', category: 'DayJoy Product', serving: '1 scoop (~10g)', kcal: 40, protein: 9, carbs: 0.5, fat: 0.3, fibre: 0),
+  FoodItem(name: 'Whey Protein Scoop', category: 'DayJoy Product', serving: '30g scoop', kcal: 120, protein: 24, carbs: 3, fat: 1.5, fibre: 0),
+  FoodItem(name: 'Nonima Detox Shot', category: 'DayJoy Product', serving: '15-30 ml with warm water', kcal: 15, protein: 0, carbs: 3, fat: 0, fibre: 0),
+  FoodItem(name: 'Aloe Vera Juice', category: 'DayJoy Product', serving: '30 ml with water', kcal: 8, protein: 0, carbs: 2, fat: 0, fibre: 0),
+  FoodItem(name: 'Seabuckthorn Juice', category: 'DayJoy Product', serving: '25-30 ml with water', kcal: 25, protein: 0, carbs: 5, fat: 0, fibre: 0),
+  FoodItem(name: 'Adiliv Syrup', category: 'DayJoy Product', serving: '10 ml', kcal: 20, protein: 0, carbs: 5, fat: 0, fibre: 0),
+  FoodItem(name: 'Livease Syrup', category: 'DayJoy Product', serving: '10 ml', kcal: 20, protein: 0, carbs: 5, fat: 0, fibre: 0),
+  FoodItem(name: 'Nitro Flow++ (Nitric Oxide Booster)', category: 'DayJoy Product', serving: '1 sachet (~7g) in 200-250 ml water', kcal: 22, protein: 5, carbs: 1, fat: 0, fibre: 0),
 
   // ---- Full database: 1500 Indian dishes (IFCT 2017 / USDA sourced) ----
   FoodItem(name: 'Toor Dal', category: 'Lunch/Dinner', isVeg: true, serving: '~180 g', kcal: 184, protein: 13.1, carbs: 33.1, fat: 3.2, fibre: 9.1),
