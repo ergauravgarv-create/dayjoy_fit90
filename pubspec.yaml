@@ -50,10 +50,13 @@ dependencies:
   share_plus: ^10.0.0
 
   # Spoken workout cues — announces the next exercise (web + mobile).
-  flutter_tts: ^4.0.2
+  # Pinned to exact versions: without a committed pubspec.lock, CI re-resolves
+  # to the latest release each run, and a newer version broke the web build
+  # (and forced the Android SDK-36 bump). Pin to stop that drift.
+  flutter_tts: 4.0.2
 
   # Soft chime for the breathing/workout timers (web + mobile).
-  audioplayers: ^6.1.0
+  audioplayers: 6.1.0
 
   # ---------------------------------------------------------------
   # Backend (Firebase) — wire these up once you run `flutterfire

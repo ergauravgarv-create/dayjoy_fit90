@@ -28,7 +28,9 @@ if (hasKeystore) {
 
 android {
     namespace = "com.dayjoy.fit90"
-    compileSdk = 34
+    // Bumped to 36: audioplayers/flutter_tts/flutter_plugin_android_lifecycle
+    // now require compiling against Android SDK 35–36.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -45,7 +47,7 @@ android {
     defaultConfig {
         applicationId = "com.dayjoy.fit90"
         minSdk = 26            // Health Connect requires 26+
-        targetSdk = 34
+        targetSdk = 34         // runtime behaviour target; compileSdk stays 36
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
     }
