@@ -36,7 +36,6 @@ const Map<String, String> kProductDosage = {
   'Adicardial Tablet': '1 tablet twice daily',
   'Adicardial Syrup': '10 ml twice daily',
   'Ample Meal': '1 serving as a meal replacement',
-  'Aloe Vera Gel': 'Apply as directed',
   'Kidney Kawach': '1 tablet twice daily',
   'Eye Elixir Drops': 'As directed',
   'Eye Health++ Tablets': '1 tablet daily',

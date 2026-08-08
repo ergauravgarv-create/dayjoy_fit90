@@ -12,42 +12,45 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  cupertino_icons: ^1.0.6
+  # All dependencies are pinned to EXACT versions (no `^`) as a stand-in for a
+  # committed pubspec.lock, so CI stops re-resolving to newer releases between
+  # runs. (Transitive deps still float; commit a real pubspec.lock to freeze
+  # those too, once you can run `flutter pub get` locally.)
+  cupertino_icons: 1.0.6
 
   # State management
-  flutter_riverpod: ^2.5.1
+  flutter_riverpod: 2.5.1
 
   # Navigation
-  go_router: ^14.2.0
+  go_router: 14.2.0
 
   # UI / Premium look
-  google_fonts: ^6.2.1
-  fl_chart: ^0.68.0
-  confetti: ^0.7.0
+  google_fonts: 6.2.1
+  fl_chart: 0.68.0
+  confetti: 0.7.0
 
-  # Utilities
-  # `any` lets pub pick the intl version that flutter_localizations pins for
-  # your Flutter release, avoiding version-solve conflicts.
-  intl: any
+  # Utilities. intl must match the version flutter_localizations pins for the
+  # Flutter release (0.19.0 for Flutter 3.24.x) or the solve fails.
+  intl: 0.19.0
 
   # Local on-device storage (used to persist the meal diary across restarts).
-  shared_preferences: ^2.2.2
+  shared_preferences: 2.2.2
 
   # Local daily reminders (mobile only; web uses a no-op via conditional import).
-  flutter_local_notifications: ^17.2.3
-  timezone: ^0.9.4
+  flutter_local_notifications: 17.2.3
+  timezone: 0.9.4
 
   # CSV parsing for the bundled clinical diet-chart database.
-  csv: ^6.0.0
+  csv: 6.0.0
 
   # Progress photo capture (camera / gallery), stored on-device for now.
-  image_picker: ^1.1.2
+  image_picker: 1.1.2
 
   # Opens reference exercise videos on YouTube (web + mobile).
-  url_launcher: ^6.3.0
+  url_launcher: 6.3.0
 
   # Share the branded progress card image via the system share sheet.
-  share_plus: ^10.0.0
+  share_plus: 10.0.0
 
   # Spoken workout cues — announces the next exercise (web + mobile).
   # Pinned to exact versions: without a committed pubspec.lock, CI re-resolves
@@ -81,14 +84,14 @@ dependencies:
   # Real step count via Health Connect (Android) / HealthKit (iOS).
   # Only reachable from mobile-guarded code (see platform_health_service_io.dart);
   # the web build never compiles it, so dart2js stays clean.
-  health: ^11.0.0
+  health: 11.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: 4.0.0
   # Turns your logo (assets/icon/logo.png) into the app icon at build time.
-  flutter_launcher_icons: ^0.13.1
+  flutter_launcher_icons: 0.13.1
 
 flutter:
   uses-material-design: true
