@@ -49,7 +49,10 @@ class ActivityReadController extends Notifier<Set<String>> {
 
 /// In-app activity generated from real local state: badges unlocked and
 /// challenges claimed. Merged with the server notifications in the inbox.
-final localActivityProvider = Provider<List<AppNotification>>((ref) {
+// autoDispose so it may watch autoDispose providers (myAppointmentsProvider) on
+// any riverpod version (2.5.x rejects a keep-alive provider watching one).
+final localActivityProvider =
+    Provider.autoDispose<List<AppNotification>>((ref) {
   final read = ref.watch(activityReadProvider);
   final badges = ref.watch(earnedBadgesProvider); // id -> awardedAt
   final claimed = ref.watch(claimedChallengesProvider); // id -> claimedAt
@@ -204,7 +207,7 @@ final localActivityProvider = Provider<List<AppNotification>>((ref) {
 });
 
 /// Count of unread local activity items (feeds the bell badge).
-final localUnreadProvider = Provider<int>(
+final localUnreadProvider = Provider.autoDispose<int>(
     (ref) => ref.watch(localActivityProvider).where((n) => !n.read).length);
 
 const List<String> _days = [

@@ -18,8 +18,10 @@ dependencies:
   # those too, once you can run `flutter pub get` locally.)
   cupertino_icons: 1.0.6
 
-  # State management
-  flutter_riverpod: 2.5.1
+  # State management. 2.6.x relaxed the rule that a keep-alive provider may not
+  # watch an autoDispose provider (which activity_provider relies on), so pin to
+  # 2.6.1 — the last 2.x, and what CI was already resolving to.
+  flutter_riverpod: 2.6.1
 
   # Navigation
   go_router: 14.2.0
