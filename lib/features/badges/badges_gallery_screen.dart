@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../shared/widgets/achievement_unlocked.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../state/achievements_provider.dart';
 
@@ -33,19 +34,15 @@ class _BadgesGalleryScreenState extends ConsumerState<BadgesGalleryScreen> {
         views.where((v) => v.progress >= 1.0).map((v) => v.def.id);
     final added = ref.read(earnedBadgesProvider.notifier).award(completeNow);
     if (added.isNotEmpty && mounted) {
-      _confetti.play();
-      final String msg;
-      if (added.length <= 3) {
-        final titles = kAchievements
-            .where((d) => added.contains(d.id))
-            .map((d) => d.title)
-            .join(', ');
-        msg = '🎉 Badge unlocked: $titles';
-      } else {
-        msg = '🎉 ${added.length} badges unlocked!';
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: AppColors.success),
+      final unlocked =
+          kAchievements.where((d) => added.contains(d.id)).toList();
+      final titles = unlocked.map((d) => d.title).toList();
+      showAchievementUnlocked(
+        context,
+        titles: titles,
+        icon: unlocked.length == 1
+            ? unlocked.first.icon
+            : Icons.emoji_events_rounded,
       );
     }
   }

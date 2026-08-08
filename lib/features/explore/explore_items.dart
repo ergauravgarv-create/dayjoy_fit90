@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../appointments/book_consult_chooser_screen.dart';
+import '../appointments/my_appointments_screen.dart';
 import '../badges/badges_gallery_screen.dart';
+import '../referral/referral_screen.dart';
+import '../subscription/subscription_screen.dart';
 import '../checkin/weekly_checkin_screen.dart';
 import '../coach_chat/coach_chat_screen.dart';
 import '../community/community_screen.dart';
 import '../fasting/fasting_screen.dart';
 import '../health/bmi_report_screen.dart';
 import '../health/connect_health_screen.dart';
+import '../meals/food_diary_screen.dart';
 import '../meals/meal_tracker_screen.dart';
 import '../meals/my_diet_plan_screen.dart';
 import '../mindfulness/mindfulness_screen.dart';
@@ -17,6 +22,8 @@ import '../reminders/reminders_screen.dart';
 import '../rewards/rewards_screen.dart';
 import '../sleep/sleep_screen.dart';
 import '../streak/streak_screen.dart';
+import '../supplements/skin_analysis_screen.dart';
+import '../supplements/supplement_consult_screen.dart';
 import '../water/water_screen.dart';
 import '../workouts/video_library_screen.dart';
 import '../workouts/workout_library_screen.dart';
@@ -30,6 +37,7 @@ class ExploreItem {
     required this.color,
     required this.keywords,
     required this.builder,
+    this.premium = true,
   });
 
   final String title;
@@ -38,6 +46,10 @@ class ExploreItem {
   final Color color;
   final String keywords; // extra search terms
   final Widget Function() builder;
+
+  /// Whether an active subscription is required. Free tools (BMI, referral,
+  /// buying a plan) set this false; everything else is premium.
+  final bool premium;
 
   bool matches(String q) {
     if (q.isEmpty) return true;
@@ -65,6 +77,14 @@ final Map<String, List<ExploreItem>> exploreSections = {
       color: AppColors.primary,
       keywords: 'diet chart food',
       builder: () => const MyDietPlanScreen(),
+    ),
+    ExploreItem(
+      title: 'Food diary',
+      subtitle: 'Meals & photos timeline',
+      icon: Icons.menu_book_rounded,
+      color: AppColors.orange,
+      keywords: 'food diary meals photos timeline history',
+      builder: () => const FoodDiaryScreen(),
     ),
     ExploreItem(
       title: 'Water tracker',
@@ -97,6 +117,7 @@ final Map<String, List<ExploreItem>> exploreSections = {
       color: AppColors.info,
       keywords: 'bmi weight health',
       builder: () => const BmiReportScreen(),
+      premium: false,
     ),
     ExploreItem(
       title: 'Progress photos',
@@ -185,6 +206,41 @@ final Map<String, List<ExploreItem>> exploreSections = {
   ],
   'Plan & support': [
     ExploreItem(
+      title: 'Dayjoy Fit90 Premium',
+      subtitle: 'Plans & benefits',
+      icon: Icons.workspace_premium_rounded,
+      color: AppColors.orange,
+      keywords: 'subscription premium plan price gst upgrade buy membership',
+      builder: () => const SubscriptionScreen(),
+      premium: false,
+    ),
+    ExploreItem(
+      title: 'Refer & earn 5%',
+      subtitle: 'Code, wallet & payouts',
+      icon: Icons.card_giftcard_rounded,
+      color: AppColors.secondary,
+      keywords: 'referral refer earn wallet code invite friends 5% payout',
+      builder: () => const ReferralScreen(),
+      premium: false,
+    ),
+    ExploreItem(
+      title: 'Consult a specialist',
+      subtitle: 'Video or voice call',
+      icon: Icons.video_call_rounded,
+      color: AppColors.info,
+      keywords:
+          'consult doctor trainer video call voice appointment booking specialist',
+      builder: () => const BookConsultChooserScreen(),
+    ),
+    ExploreItem(
+      title: 'My consultations',
+      subtitle: 'Bookings & join call',
+      icon: Icons.event_note_rounded,
+      color: AppColors.primary,
+      keywords: 'my consultations appointments join call video voice booking',
+      builder: () => const MyAppointmentsScreen(),
+    ),
+    ExploreItem(
       title: 'Goal & plan',
       subtitle: 'Target & timeline',
       icon: Icons.flag_rounded,
@@ -207,6 +263,22 @@ final Map<String, List<ExploreItem>> exploreSections = {
       color: AppColors.secondary,
       keywords: 'chat coach consultant message',
       builder: () => const CoachChatScreen(),
+    ),
+    ExploreItem(
+      title: 'Supplement consult',
+      subtitle: 'Dayjoy products for your health',
+      icon: Icons.medication_liquid_rounded,
+      color: AppColors.info,
+      keywords: 'supplement products health issue doctor recommendation',
+      builder: () => const SupplementConsultScreen(),
+    ),
+    ExploreItem(
+      title: 'AI skin analysis',
+      subtitle: 'Face check → skincare routine',
+      icon: Icons.face_retouching_natural_rounded,
+      color: AppColors.taskYoga,
+      keywords: 'skin face acne wrinkles dark circles skincare cleanser serum moisturizer',
+      builder: () => const SkinAnalysisScreen(),
     ),
   ],
 };

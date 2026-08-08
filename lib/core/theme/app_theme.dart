@@ -31,6 +31,29 @@ abstract final class AppTheme {
       scaffoldBackgroundColor: Colors.transparent,
       textTheme: AppTypography.textTheme(brightness),
       splashFactory: InkSparkle.splashFactory,
+      // Smooth fade-through navigation on every push (feels premium vs. the
+      // default platform slide).
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: _FadeThroughBuilder(),
+        TargetPlatform.iOS: _FadeThroughBuilder(),
+        TargetPlatform.macOS: _FadeThroughBuilder(),
+        TargetPlatform.windows: _FadeThroughBuilder(),
+        TargetPlatform.linux: _FadeThroughBuilder(),
+        TargetPlatform.fuchsia: _FadeThroughBuilder(),
+      }),
+      // Floating, rounded snackbars across the app (colored ones just override
+      // the background).
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        backgroundColor:
+            isDark ? const Color(0xFF2A3742) : const Color(0xFF25303A),
+        contentTextStyle: const TextStyle(
+            color: Colors.white, fontWeight: FontWeight.w600),
+        insetPadding: const EdgeInsets.all(AppSpacing.lg),
+        elevation: 6,
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
@@ -97,6 +120,32 @@ abstract final class AppTheme {
       dividerTheme: DividerThemeData(
         color: isDark ? Colors.white10 : Colors.black.withOpacity(0.06),
         thickness: 1,
+      ),
+    );
+  }
+}
+
+/// A gentle fade + slight upward slide for page pushes — a calm, premium feel.
+class _FadeThroughBuilder extends PageTransitionsBuilder {
+  const _FadeThroughBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final curved =
+        CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position: Tween<Offset>(
+                begin: const Offset(0, 0.035), end: Offset.zero)
+            .animate(curved),
+        child: child,
       ),
     );
   }

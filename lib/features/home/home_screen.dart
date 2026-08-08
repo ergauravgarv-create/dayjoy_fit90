@@ -3,19 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/billing/subscription_plans.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../shared/widgets/animated_count.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/progress_ring.dart';
+import '../../shared/widgets/skeleton.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/stat_tile.dart';
 import '../../shared/widgets/weight_line_chart.dart';
 import '../../state/engagement_providers.dart';
 import '../../state/meal_provider.dart';
 import '../../state/providers.dart';
+import '../../state/referral_provider.dart';
+import '../../state/subscription_provider.dart';
 import '../explore/explore_screen.dart';
+import '../referral/referral_screen.dart';
+import '../subscription/paywall.dart';
+import '../subscription/subscription_screen.dart';
 import '../health/bmi_report_screen.dart';
 import '../health/connect_health_screen.dart';
 import '../meals/meal_tracker_screen.dart';
@@ -49,7 +57,14 @@ class HomeScreen extends ConsumerWidget {
     final int mealKcal = MealTotals.of(ref.watch(mealLogProvider)).kcal;
 
     if (participant == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.all(AppSpacing.lg),
+            child: SkeletonList(count: 6, itemHeight: 92),
+          ),
+        ),
+      );
     }
 
     final int rank =
@@ -73,7 +88,14 @@ class HomeScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(l.homeGreeting, style: text.bodyMedium),
+                        Row(
+                          children: [
+                            Text(_timeGreeting(), style: text.bodyMedium),
+                            const SizedBox(width: 6),
+                            Text(_timeGreetingEmoji(),
+                                style: const TextStyle(fontSize: 14)),
+                          ],
+                        ),
                         Text(participant.name.split(' ').first,
                             style: text.headlineSmall),
                       ],
@@ -122,7 +144,9 @@ class HomeScreen extends ConsumerWidget {
                       center: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('${(completion * 100).round()}%',
+                          AnimatedCount(
+                              value: (completion * 100).round(),
+                              suffix: '%',
                               style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 26,
@@ -160,6 +184,19 @@ class HomeScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+
+              // Buy Health plan + Wallet (referral incentive)
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: const [
+                    Expanded(child: _HomeBuyPlanCard()),
+                    SizedBox(width: AppSpacing.md),
+                    Expanded(child: _HomeWalletCard()),
                   ],
                 ),
               ),
@@ -274,10 +311,12 @@ class HomeScreen extends ConsumerWidget {
 
               // Meal tracker CTA
               GlassCard(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                      builder: (_) => const MealTrackerScreen()),
-                ),
+                onTap: () {
+                  if (ensurePremium(context, ref, 'Meal tracker')) {
+                    Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => const MealTrackerScreen()));
+                  }
+                },
                 child: Row(
                   children: [
                     CircleAvatar(
@@ -304,10 +343,12 @@ class HomeScreen extends ConsumerWidget {
 
               // Diet plan CTA (doctor-approved)
               GlassCard(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                      builder: (_) => const MyDietPlanScreen()),
-                ),
+                onTap: () {
+                  if (ensurePremium(context, ref, 'My diet plan')) {
+                    Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => const MyDietPlanScreen()));
+                  }
+                },
                 child: Row(
                   children: [
                     CircleAvatar(
@@ -372,7 +413,11 @@ class HomeScreen extends ConsumerWidget {
 
               // Weekly check-in CTA
               GlassCard(
-                onTap: () => context.push(Routes.weeklyCheckin),
+                onTap: () {
+                  if (ensurePremium(context, ref, 'Weekly check-in')) {
+                    context.push(Routes.weeklyCheckin);
+                  }
+                },
                 child: Row(
                   children: [
                     CircleAvatar(
@@ -470,6 +515,117 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Home CTA: buy a Health plan (or shows premium status once subscribed).
+class _HomeBuyPlanCard extends ConsumerWidget {
+  const _HomeBuyPlanCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bool premium = ref.watch(isPremiumProvider);
+    final sub = ref.watch(subscriptionProvider);
+    final int daysLeft = sub?.daysLeft ?? 0;
+    final bool expiringSoon = premium && daysLeft <= 7;
+
+    final String title = !premium
+        ? 'Buy Health plan'
+        : (expiringSoon ? 'Renew your plan' : 'Premium active');
+    final String subtitle = !premium
+        ? 'Unlock consultations & more'
+        : (expiringSoon
+            ? '${daysLeft <= 0 ? 'Expires today' : '$daysLeft days left'} — tap to renew'
+            : '${sub?.plan?.title ?? ''} · $daysLeft days left');
+
+    return GlassCard(
+      gradient: expiringSoon ? AppColors.goldGradient : AppColors.brandGradient,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const SubscriptionScreen()),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+              expiringSoon
+                  ? Icons.autorenew_rounded
+                  : Icons.workspace_premium_rounded,
+              color: Colors.white,
+              size: 26),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            title,
+            style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 15),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Home card: Fit90 Wallet balance (referral incentive). API-ready.
+class _HomeWalletCard extends ConsumerWidget {
+  const _HomeWalletCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary = ref.watch(walletSummaryProvider);
+    return GlassCard(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const ReferralScreen()),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.account_balance_wallet_rounded,
+              color: AppColors.primary, size: 26),
+          const SizedBox(height: AppSpacing.sm),
+          Text('Wallet',
+              style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15)),
+          const SizedBox(height: 2),
+          Text(formatInr(summary.available),
+              style: const TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18)),
+          Text('Refer & earn 5%',
+              style: TextStyle(
+                  color: AppColors.textSecondary, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+}
+
+/// A warm, time-aware greeting so the app feels personal each time it opens.
+String _timeGreeting() {
+  final int h = DateTime.now().hour;
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  if (h < 21) return 'Good evening';
+  return 'Good night';
+}
+
+String _timeGreetingEmoji() {
+  final int h = DateTime.now().hour;
+  if (h < 12) return '☀️';
+  if (h < 17) return '🌤️';
+  if (h < 21) return '🌆';
+  return '🌙';
 }
 
 class _NotificationBell extends StatelessWidget {

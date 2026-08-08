@@ -32,7 +32,7 @@ const List<OnboardSlide> kOnboardSlides = [
     image: 'assets/images/onboarding_1_welcome.png',
     icon: Icons.spa_rounded,
     gradient: [AppColors.primary, AppColors.secondary],
-    title: 'Welcome to DayJoy Fit90',
+    title: 'Welcome to Dayjoy Fit90',
     body:
         'The 90-Day Transformation Challenge. Your journey to a healthier, '
         'happier you starts here.',

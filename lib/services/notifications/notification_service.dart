@@ -22,5 +22,14 @@ abstract class NotificationService {
     required int minute,
   });
 
+  /// Schedule (or replace) a one-off notification at an absolute local
+  /// date/time. If [when] is in the past, nothing is scheduled.
+  Future<void> scheduleOnceAt({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime when,
+  });
+
   Future<void> cancel(int id);
 }

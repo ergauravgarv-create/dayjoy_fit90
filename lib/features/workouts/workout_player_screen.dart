@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -28,6 +30,10 @@ class _WorkoutPlayerScreenState extends State<WorkoutPlayerScreen> {
   int _segmentTotal = 1; // for the ring progress
   Timer? _timer;
 
+  final FlutterTts _tts = FlutterTts();
+  final AudioPlayer _chime = AudioPlayer();
+  bool _soundOn = true;
+
   List<Exercise> get _exercises => widget.workout.exercises;
   Exercise get _current => _exercises[_index];
   bool get _isLast => _index == _exercises.length - 1;
@@ -35,38 +41,71 @@ class _WorkoutPlayerScreenState extends State<WorkoutPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    _configureTts();
+    _configureChime();
     _startExercise();
+  }
+
+  Future<void> _configureTts() async {
+    try {
+      await _tts.setLanguage('en-US');
+      await _tts.setSpeechRate(0.5);
+      await _tts.setVolume(1.0);
+      await _tts.setPitch(1.0);
+    } catch (_) {
+      // TTS is best-effort; ticks/haptics still work without it.
+    }
+  }
+
+  Future<void> _configureChime() async {
+    try {
+      await _chime.setPlayerMode(PlayerMode.lowLatency);
+      await _chime.setReleaseMode(ReleaseMode.stop);
+    } catch (_) {
+      // Best-effort — haptics still cue the rhythm without it.
+    }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _tts.stop();
+    _chime.dispose();
     super.dispose();
   }
 
   // --- Audio / haptic cues ---------------------------------------------------
-  void _beep() {
-    SystemSound.play(SystemSoundType.click);
+  /// A soft chime each second.
+  void _tickCue() {
+    if (_soundOn) {
+      _chime.play(AssetSource('sounds/chime.wav'), volume: 0.6);
+    }
     HapticFeedback.selectionClick();
   }
 
-  void _cueWork() {
-    SystemSound.play(SystemSoundType.click);
-    HapticFeedback.mediumImpact();
-  }
-
-  void _cueRest() {
-    SystemSound.play(SystemSoundType.click);
-    HapticFeedback.lightImpact();
+  /// Speak [text] (skipped when muted). Stops any in-progress utterance first.
+  Future<void> _speak(String text) async {
+    if (!_soundOn) return;
+    try {
+      await _tts.stop();
+      await _tts.speak(text);
+    } catch (_) {
+      // Ignore — announcements are best-effort.
+    }
   }
 
   // --- Flow ------------------------------------------------------------------
   void _startExercise() {
     _resting = false;
-    _cueWork();
-    if (_current.isTimed) {
-      _secondsLeft = _current.seconds!;
-      _segmentTotal = _current.seconds!;
+    HapticFeedback.mediumImpact();
+    // Announce the move and its target.
+    final ex = _current;
+    _speak(ex.isTimed
+        ? '${ex.name}. ${ex.seconds} seconds.'
+        : '${ex.name}. ${ex.reps} reps.');
+    if (ex.isTimed) {
+      _secondsLeft = ex.seconds!;
+      _segmentTotal = ex.seconds!;
       _tick();
     } else {
       _secondsLeft = 0;
@@ -80,7 +119,12 @@ class _WorkoutPlayerScreenState extends State<WorkoutPlayerScreen> {
     _resting = true;
     _secondsLeft = seconds;
     _segmentTotal = seconds;
-    _cueRest();
+    HapticFeedback.lightImpact();
+    // Announce the upcoming exercise during the rest.
+    final String nextName = (_index + 1 < _exercises.length)
+        ? _exercises[_index + 1].name
+        : '';
+    _speak('Rest. Next up, $nextName.');
     _tick();
     setState(() {});
   }
@@ -94,7 +138,7 @@ class _WorkoutPlayerScreenState extends State<WorkoutPlayerScreen> {
         _advance();
       } else {
         setState(() => _secondsLeft--);
-        if (_secondsLeft <= 3) _beep();
+        _tickCue(); // tick every second
       }
     });
   }
@@ -122,7 +166,8 @@ class _WorkoutPlayerScreenState extends State<WorkoutPlayerScreen> {
   void _finish() {
     _timer?.cancel();
     HapticFeedback.heavyImpact();
-    SystemSound.play(SystemSoundType.alert);
+    if (_soundOn) SystemSound.play(SystemSoundType.alert);
+    _speak('Workout complete. Great job!');
     setState(() => _finished = true);
   }
 
@@ -182,6 +227,18 @@ class _WorkoutPlayerScreenState extends State<WorkoutPlayerScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(w.title),
+          actions: [
+            IconButton(
+              tooltip: _soundOn ? 'Mute sound' : 'Unmute sound',
+              icon: Icon(_soundOn
+                  ? Icons.volume_up_rounded
+                  : Icons.volume_off_rounded),
+              onPressed: () {
+                if (_soundOn) _tts.stop();
+                setState(() => _soundOn = !_soundOn);
+              },
+            ),
+          ],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(4),
             child: LinearProgressIndicator(

@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -29,7 +31,11 @@ class _BreathingTimerScreenState extends State<BreathingTimerScreen>
   int _secondsLeft = 0;
   bool _paused = false;
   bool _finished = false;
+  bool _soundOn = true;
   Timer? _timer;
+
+  final FlutterTts _tts = FlutterTts();
+  final AudioPlayer _chime = AudioPlayer();
 
   BreathPattern get _p => widget.pattern;
   BreathPhase get _phase => _p.phases[_phaseIndex];
@@ -37,20 +43,63 @@ class _BreathingTimerScreenState extends State<BreathingTimerScreen>
   @override
   void initState() {
     super.initState();
+    _configureTts();
+    _configureChime();
     _startPhase();
+  }
+
+  Future<void> _configureTts() async {
+    try {
+      await _tts.setLanguage('en-US');
+      await _tts.setSpeechRate(0.42); // calm, slow voice
+      await _tts.setVolume(1.0);
+      await _tts.setPitch(1.0);
+    } catch (_) {
+      // Best-effort — ticks/haptics still guide the breath without it.
+    }
+  }
+
+  Future<void> _configureChime() async {
+    try {
+      await _chime.setPlayerMode(PlayerMode.lowLatency);
+      await _chime.setReleaseMode(ReleaseMode.stop);
+    } catch (_) {
+      // Best-effort — haptics still guide the breath without it.
+    }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _tts.stop();
+    _chime.dispose();
     _scale.dispose();
     super.dispose();
+  }
+
+  /// A soft chime each second so the breath has a gentle audible rhythm.
+  void _tickCue() {
+    if (_soundOn) {
+      _chime.play(AssetSource('sounds/chime.wav'), volume: 0.5);
+    }
+    HapticFeedback.selectionClick();
+  }
+
+  Future<void> _speak(String text) async {
+    if (!_soundOn) return;
+    try {
+      await _tts.stop();
+      await _tts.speak(text);
+    } catch (_) {}
   }
 
   void _startPhase() {
     final phase = _phase;
     _secondsLeft = phase.seconds;
     HapticFeedback.lightImpact();
+    // Speak the cue ("Breathe in" / "Hold" / "Breathe out") so the person can
+    // follow the rhythm with their eyes closed.
+    _speak(phase.label);
     // Animate the circle toward this phase's target over its duration. For a
     // "hold" the target equals the current value, so it simply rests.
     _scale.animateTo(
@@ -71,6 +120,7 @@ class _BreathingTimerScreenState extends State<BreathingTimerScreen>
         _advance();
       } else {
         setState(() => _secondsLeft--);
+        _tickCue(); // audible tick each second
       }
     });
   }
@@ -94,6 +144,7 @@ class _BreathingTimerScreenState extends State<BreathingTimerScreen>
   void _finish() {
     _timer?.cancel();
     HapticFeedback.mediumImpact();
+    _speak('Well done. Take that calm with you.');
     setState(() => _finished = true);
   }
 
@@ -116,7 +167,21 @@ class _BreathingTimerScreenState extends State<BreathingTimerScreen>
   Widget build(BuildContext context) {
     final color = _p.color;
     return Scaffold(
-      appBar: AppBar(title: Text(_p.name)),
+      appBar: AppBar(
+        title: Text(_p.name),
+        actions: [
+          IconButton(
+            tooltip: _soundOn ? 'Mute sound' : 'Unmute sound',
+            icon: Icon(_soundOn
+                ? Icons.volume_up_rounded
+                : Icons.volume_off_rounded),
+            onPressed: () {
+              if (_soundOn) _tts.stop();
+              setState(() => _soundOn = !_soundOn);
+            },
+          ),
+        ],
+      ),
       body: _finished
           ? _Finished(pattern: _p)
           : Padding(

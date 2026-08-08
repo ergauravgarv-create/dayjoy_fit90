@@ -96,6 +96,37 @@ class _LocalNotificationService implements NotificationService {
     }
   }
 
+  @override
+  Future<void> scheduleOnceAt({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime when,
+  }) async {
+    await init();
+    if (!_ready) return;
+    try {
+      final scheduled = tz.TZDateTime.from(when, tz.local);
+      if (!scheduled.isAfter(tz.TZDateTime.now(tz.local))) return; // past
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduled,
+        const NotificationDetails(
+          android: _androidDetails,
+          iOS: DarwinNotificationDetails(),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        // No matchDateTimeComponents → fires once.
+      );
+    } catch (_) {
+      // Ignore scheduling failures (e.g. permission not granted yet).
+    }
+  }
+
   tz.TZDateTime _nextInstanceOf(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);
     var scheduled =

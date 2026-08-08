@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../state/subscription_provider.dart';
+import '../subscription/paywall.dart';
 import 'explore_items.dart';
 
-class ExploreScreen extends StatefulWidget {
+class ExploreScreen extends ConsumerStatefulWidget {
   const ExploreScreen({super.key});
 
   @override
-  State<ExploreScreen> createState() => _ExploreScreenState();
+  ConsumerState<ExploreScreen> createState() => _ExploreScreenState();
 }
 
-class _ExploreScreenState extends State<ExploreScreen> {
+class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   String _query = '';
 
   void _open(ExploreItem item) {
+    // Premium tools require an active subscription; free users see a paywall.
+    if (item.premium && !ensurePremium(context, ref, item.title)) return;
     Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => item.builder()));
   }
@@ -24,6 +29,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
     final bool searching = _query.trim().isNotEmpty;
+    final bool premium = ref.watch(isPremiumProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Explore')),
@@ -50,15 +56,15 @@ class _ExploreScreenState extends State<ExploreScreen> {
           ),
           Expanded(
             child: searching
-                ? _buildSearchResults(text)
-                : _buildSections(text),
+                ? _buildSearchResults(text, premium)
+                : _buildSections(text, premium),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSearchResults(TextTheme text) {
+  Widget _buildSearchResults(TextTheme text, bool premium) {
     final matches =
         allExploreItems.where((i) => i.matches(_query)).toList();
     if (matches.isEmpty) {
@@ -73,11 +79,17 @@ class _ExploreScreenState extends State<ExploreScreen> {
       mainAxisSpacing: AppSpacing.md,
       crossAxisSpacing: AppSpacing.md,
       childAspectRatio: 1.55,
-      children: [for (final i in matches) _Tile(item: i, onTap: () => _open(i))],
+      children: [
+        for (final i in matches)
+          _Tile(
+              item: i,
+              locked: i.premium && !premium,
+              onTap: () => _open(i)),
+      ],
     );
   }
 
-  Widget _buildSections(TextTheme text) {
+  Widget _buildSections(TextTheme text, bool premium) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xxl),
@@ -97,7 +109,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
             childAspectRatio: 1.55,
             children: [
               for (final i in entry.value)
-                _Tile(item: i, onTap: () => _open(i)),
+                _Tile(
+                    item: i,
+                    locked: i.premium && !premium,
+                    onTap: () => _open(i)),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -108,9 +123,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
 }
 
 class _Tile extends StatelessWidget {
-  const _Tile({required this.item, required this.onTap});
+  const _Tile({required this.item, required this.onTap, this.locked = false});
   final ExploreItem item;
   final VoidCallback onTap;
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
@@ -118,28 +134,35 @@ class _Tile extends StatelessWidget {
     return GlassCard(
       onTap: onTap,
       padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Stack(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: item.color.withOpacity(0.14),
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: Icon(item.icon, color: item.color, size: 22),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: item.color.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Icon(item.icon, color: item.color, size: 22),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(item.title,
+                  style: text.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+              Text(item.subtitle,
+                  style:
+                      text.bodySmall?.copyWith(color: AppColors.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+            ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(item.title,
-              style: text.titleSmall,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis),
-          Text(item.subtitle,
-              style: text.bodySmall?.copyWith(color: AppColors.textSecondary),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis),
+          if (locked)
+            const Positioned(top: 0, right: 0, child: PremiumLockBadge()),
         ],
       ),
     );

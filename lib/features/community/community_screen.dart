@@ -88,7 +88,7 @@ class _FeedTab extends ConsumerWidget {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.surfaceOf(context),
       builder: (_) =>
           _Composer(author: participant.name, city: participant.city, ref: ref),
     );

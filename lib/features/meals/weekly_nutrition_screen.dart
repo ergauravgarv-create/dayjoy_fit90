@@ -1,12 +1,17 @@
+import 'dart:convert';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../state/meal_photos_provider.dart';
 import '../../state/meal_provider.dart';
 import '../../state/providers.dart';
+import 'food_diary_screen.dart';
 import 'meal_data.dart';
 
 const List<String> _weekdayShort = [
@@ -87,6 +92,10 @@ class WeeklyNutritionScreen extends ConsumerWidget {
 
                 // Average macros
                 _AvgMacros(logged: logged),
+                const SizedBox(height: AppSpacing.xl),
+
+                // Meal photos this week + link to the full diary
+                const _MealPhotosSection(),
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   'Green bars hit your goal. Days without any logged meals show '
@@ -102,6 +111,96 @@ class WeeklyNutritionScreen extends ConsumerWidget {
 
   Widget _divider() =>
       Container(width: 1, height: 34, color: Colors.white24);
+}
+
+class _MealPhotosSection extends ConsumerWidget {
+  const _MealPhotosSection();
+
+  void _view(BuildContext context, String data) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(AppSpacing.lg),
+        child: GestureDetector(
+          onTap: () => Navigator.pop(ctx),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: Image.memory(base64Decode(data), fit: BoxFit.contain),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final diary = ref.watch(foodDiaryProvider);
+    final TextTheme text = Theme.of(context).textTheme;
+
+    final entries = <({DateTime date, MealType type, String data})>[];
+    for (final d in diary) {
+      for (final e in d.photos.entries) {
+        entries.add((date: d.date, type: e.key, data: e.value));
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Meal photos', style: text.titleMedium),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                    builder: (_) => const FoodDiaryScreen()),
+              ),
+              icon: const Icon(Icons.menu_book_rounded, size: 18),
+              label: const Text('Food diary'),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (entries.isEmpty)
+          Text(
+            'Snap a photo of your plate in the Meal Tracker — your meal '
+            'pictures show up here and in your food diary.',
+            style: text.bodySmall?.copyWith(color: AppColors.textSecondary),
+          )
+        else
+          SizedBox(
+            height: 108,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: entries.length,
+              separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
+              itemBuilder: (context, i) {
+                final e = entries[i];
+                return GestureDetector(
+                  onTap: () => _view(context, e.data),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        child: Image.memory(base64Decode(e.data),
+                            width: 84, height: 84, fit: BoxFit.cover),
+                      ),
+                      const SizedBox(height: 3),
+                      Text('${DateFormat('EEE').format(e.date)} · ${e.type.label}',
+                          style: text.bodySmall
+                              ?.copyWith(color: AppColors.textSecondary)),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 class _Summary extends StatelessWidget {

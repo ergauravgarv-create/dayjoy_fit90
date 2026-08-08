@@ -165,7 +165,7 @@ class _ProgressCard extends StatelessWidget {
                 horizontal: AppSpacing.lg, vertical: AppSpacing.md),
             child: Row(
               children: [
-                const Text('DAYJOY',
+                const Text('Dayjoy',
                     style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w900,

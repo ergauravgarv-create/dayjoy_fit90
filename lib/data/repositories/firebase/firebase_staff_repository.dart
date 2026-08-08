@@ -57,9 +57,46 @@ class FirebaseStaffRepository implements StaffRepository {
       .map((q) => q.docs.map(_appointment).toList());
 
   @override
+  Stream<List<Appointment>> watchParticipantAppointments(
+          String participantId) =>
+      _fs
+          .collection('appointments')
+          .where('participantId', isEqualTo: participantId)
+          .orderBy('requestedAt', descending: true)
+          .snapshots()
+          .map((q) => q.docs.map(_appointment).toList());
+
+  @override
   Future<void> updateAppointmentStatus(String id, AppointmentStatus status) =>
       _fs.collection('appointments').doc(id).set(
-        {'status': status.name},
+        {
+          'status': status.name,
+          if (status == AppointmentStatus.confirmed)
+            'confirmedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
+  @override
+  Future<void> rescheduleAppointment(String id, DateTime newScheduledAt) =>
+      _fs.collection('appointments').doc(id).set(
+        {
+          'scheduledAt': Timestamp.fromDate(newScheduledAt),
+          'status': AppointmentStatus.requested.name,
+        },
+        SetOptions(merge: true),
+      );
+
+  @override
+  Future<void> addConsultationNote(String id, String note,
+          {DateTime? followUpAt}) =>
+      _fs.collection('appointments').doc(id).set(
+        {
+          'providerNote': note,
+          'noteAt': FieldValue.serverTimestamp(),
+          if (followUpAt != null)
+            'followUpAt': Timestamp.fromDate(followUpAt),
+        },
         SetOptions(merge: true),
       );
 

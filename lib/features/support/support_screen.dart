@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../shared/widgets/glass_card.dart';
 import 'schedule_call_screen.dart';
 import 'support_chat_screen.dart';
+
+/// Dayjoy Care contact details — update here if they change.
+const String kCareHours = '10 AM – 6 PM · Mon to Sat';
+const String kCarePhone = '+91 7733990555';
+const String kCarePhoneDial = 'tel:+917733990555';
+const String kCareEmail = 'support@dayjoy.in';
 
 /// Customer-care hub: live chat, schedule a callback, helpline and email.
 class SupportScreen extends StatelessWidget {
@@ -17,8 +24,14 @@ class SupportScreen extends StatelessWidget {
     void push(Widget screen) => Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => screen));
 
-    void info(String msg) => ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    Future<void> launch(String uri, String fallback) async {
+      final ok = await launchUrl(Uri.parse(uri),
+          mode: LaunchMode.externalApplication);
+      if (!ok && context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(fallback)));
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Help & Support')),
@@ -44,7 +57,7 @@ class SupportScreen extends StatelessWidget {
                               color: Colors.white,
                               fontSize: 20,
                               fontWeight: FontWeight.w800)),
-                      Text('We\'re here to help — 8 AM to 9 PM, every day.',
+                      Text('We\'re here to help — $kCareHours.',
                           style: TextStyle(
                               color: Colors.white.withOpacity(0.9))),
                     ],
@@ -75,22 +88,23 @@ class SupportScreen extends StatelessWidget {
             icon: Icons.call_rounded,
             color: AppColors.success,
             title: 'Call the helpline',
-            subtitle: '+91 90000 12345',
-            onTap: () => info('Helpline: +91 90000 12345'),
+            subtitle: '$kCarePhone · $kCareHours',
+            onTap: () => launch(kCarePhoneDial, 'Helpline: $kCarePhone'),
           ),
           const SizedBox(height: AppSpacing.md),
           _SupportTile(
             icon: Icons.mail_rounded,
             color: AppColors.accent,
             title: 'Email us',
-            subtitle: 'care@dayjoy.example',
-            onTap: () => info('Email: care@dayjoy.example'),
+            subtitle: kCareEmail,
+            onTap: () => launch('mailto:$kCareEmail', 'Email: $kCareEmail'),
           ),
 
           const SizedBox(height: AppSpacing.xl),
           Text(
-            'For medical emergencies, please contact your local emergency '
-            'services — this app is not for urgent medical help.',
+            'Dayjoy Care is available $kCareHours. For medical emergencies, '
+            'please contact your local emergency services — this app is not for '
+            'urgent medical help.',
             style: text.bodySmall,
             textAlign: TextAlign.center,
           ),

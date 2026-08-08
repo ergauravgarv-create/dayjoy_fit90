@@ -12,13 +12,30 @@ import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/stat_tile.dart';
 import '../../../state/repository_providers.dart';
 import '../../../state/staff_providers.dart';
+import '../consult_note_sheet.dart';
 import '../widgets/staff_widgets.dart';
+
+/// Anchors the "Appointment requests" section so the new-booking banner can
+/// scroll straight to it. Stable across rebuilds (only one dashboard is live).
+final GlobalKey _coachRequestsKey = GlobalKey();
 
 class CoachDashboard extends ConsumerWidget {
   const CoachDashboard({super.key});
 
   Future<void> _setStatus(WidgetRef ref, String id, AppointmentStatus s) =>
       ref.read(staffRepositoryProvider).updateAppointmentStatus(id, s);
+
+  void _scrollToRequests() {
+    final ctx = _coachRequestsKey.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOutCubic,
+        alignment: 0.05,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,6 +58,14 @@ class CoachDashboard extends ConsumerWidget {
             icon: Icons.fitness_center_rounded,
           ),
           const SizedBox(height: AppSpacing.lg),
+
+          // New booking alert (clears once all requests are handled).
+          NewBookingsBanner(
+            requests: (appts.valueOrNull ?? const [])
+                .where((a) => a.status == AppointmentStatus.requested)
+                .toList(),
+            onTap: _scrollToRequests,
+          ),
 
           // KPIs
           Row(
@@ -76,7 +101,7 @@ class CoachDashboard extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xl),
 
           // Appointment requests
-          SectionHeader(title: l.secAppointmentRequests),
+          SectionHeader(key: _coachRequestsKey, title: l.secAppointmentRequests),
           const SizedBox(height: AppSpacing.md),
           appts.when(
             loading: () => const _Loading(),
@@ -129,6 +154,10 @@ class CoachDashboard extends ConsumerWidget {
                         appointment: a,
                         onComplete: () =>
                             _setStatus(ref, a.id, AppointmentStatus.completed),
+                        onNoShow: () =>
+                            _setStatus(ref, a.id, AppointmentStatus.noShow),
+                        onAddNote: () =>
+                            showConsultationNoteSheet(context, ref, a),
                       ),
                     ),
                 ],

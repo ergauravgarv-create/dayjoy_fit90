@@ -114,7 +114,7 @@ class _TransformationIntroScreenState extends State<TransformationIntroScreen> {
               padding: const EdgeInsets.all(AppSpacing.xl),
               child: FilledButton(
                 onPressed: _next,
-                child: Text(_isLast ? 'Enter DayJoy Fit90' : 'Continue'),
+                child: Text(_isLast ? 'Enter Dayjoy Fit90' : 'Continue'),
               ),
             ),
           ],

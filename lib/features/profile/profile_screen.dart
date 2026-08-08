@@ -12,8 +12,11 @@ import '../../shared/widgets/section_header.dart';
 import '../../state/achievements_provider.dart';
 import '../../state/locale_provider.dart';
 import '../../state/providers.dart';
+import '../../state/theme_provider.dart';
 import '../../data/models/appointment.dart';
 import '../appointments/book_appointment_screen.dart';
+import '../appointments/my_appointments_screen.dart';
+import '../subscription/paywall.dart';
 import '../badges/badges_gallery_screen.dart';
 import '../health/connect_health_screen.dart';
 import '../legal/legal_page.dart';
@@ -106,12 +109,16 @@ class ProfileScreen extends ConsumerWidget {
             color: AppColors.taskFitness,
             name: AppConstants.coachName,
             role: l.coachBookSession,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const BookAppointmentScreen(
-                    providerRole: ProviderKind.coach),
-              ),
-            ),
+            onTap: () {
+              if (ensurePremium(context, ref, 'Trainer consultation')) {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const BookAppointmentScreen(
+                        providerRole: ProviderKind.coach),
+                  ),
+                );
+              }
+            },
           ),
           const SizedBox(height: AppSpacing.sm),
           _TeamTile(
@@ -119,10 +126,26 @@ class ProfileScreen extends ConsumerWidget {
             color: AppColors.info,
             name: AppConstants.doctorName,
             role: l.doctorRequestConsult,
+            onTap: () {
+              if (ensurePremium(context, ref, 'Doctor consultation')) {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const BookAppointmentScreen(
+                        providerRole: ProviderKind.doctor),
+                  ),
+                );
+              }
+            },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _TeamTile(
+            icon: Icons.event_note_rounded,
+            color: AppColors.primary,
+            name: 'My consultations',
+            role: 'Video/voice bookings & join call',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => const BookAppointmentScreen(
-                    providerRole: ProviderKind.doctor),
+                builder: (_) => const MyAppointmentsScreen(),
               ),
             ),
           ),
@@ -183,6 +206,10 @@ class ProfileScreen extends ConsumerWidget {
                     label: l.profileLanguage,
                     onTap: () => _showLanguageDialog(context, ref, l)),
                 _NavRow(
+                    icon: Icons.brightness_6_rounded,
+                    label: 'Appearance',
+                    onTap: () => _showThemeDialog(context, ref)),
+                _NavRow(
                     icon: Icons.lock_outline_rounded,
                     label: l.profilePrivacy,
                     onTap: () => Navigator.of(context).push(
@@ -227,6 +254,41 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+void _showThemeDialog(BuildContext context, WidgetRef ref) {
+  final current = ref.read(themeModeProvider);
+  final items = <(String, String, IconData, ThemeMode)>[
+    ('System default', 'Match your phone', Icons.brightness_auto_rounded,
+        ThemeMode.system),
+    ('Light', 'Bright & clean', Icons.light_mode_rounded, ThemeMode.light),
+    ('Dark', 'Easy on the eyes', Icons.dark_mode_rounded, ThemeMode.dark),
+  ];
+  showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: AppColors.surfaceOf(dialogContext),
+      title: const Text('Appearance'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (label, subtitle, icon, mode) in items)
+            RadioListTile<ThemeMode>(
+              value: mode,
+              groupValue: current,
+              secondary: Icon(icon, color: AppColors.primary),
+              title: Text(label),
+              subtitle: Text(subtitle),
+              contentPadding: EdgeInsets.zero,
+              onChanged: (m) {
+                if (m != null) ref.read(themeModeProvider.notifier).set(m);
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+        ],
+      ),
+    ),
+  );
 }
 
 void _showLanguageDialog(

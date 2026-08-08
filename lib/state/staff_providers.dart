@@ -19,6 +19,13 @@ final doctorAppointmentsProvider =
         .watch(staffRepositoryProvider)
         .watchAppointments(ProviderKind.doctor));
 
+/// A specific participant's appointments — used by Care-team assisted booking.
+final participantAppointmentsProvider =
+    StreamProvider.autoDispose.family<List<Appointment>, String>(
+        (ref, participantId) => ref
+            .watch(staffRepositoryProvider)
+            .watchParticipantAppointments(participantId));
+
 final adminStatsProvider = StreamProvider.autoDispose<AdminStats>(
     (ref) => ref.watch(adminRepositoryProvider).watchStats());
 

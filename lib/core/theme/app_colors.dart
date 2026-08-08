@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 /// Premium wellness — Green + White. Keep every color reference in the app
 /// pointing here so re-branding is a single-file change.
 abstract final class AppColors {
-  // Brand — green + DayJoy orange
+  // Brand — green + Dayjoy orange
   static const Color primary = Color(0xFF0D8B6F); // deep wellness green
   static const Color secondary = Color(0xFF1FBF75); // vibrant green
-  static const Color orange = Color(0xFFFA6E35); // DayJoy brand orange
+  static const Color orange = Color(0xFFFA6E35); // Dayjoy brand orange
   static const Color orangeDark = Color(0xFFE85A22);
   static const Color accent = orange; // points, streaks, energy
 
@@ -66,4 +66,10 @@ abstract final class AppColors {
 
   static const Color glassBorder = Color(0x33FFFFFF);
   static const Color shadow = Color(0x14000000);
+
+  /// The right card/sheet surface for the current brightness. Use this instead
+  /// of the raw `surface` constant anywhere a container must adapt to dark mode
+  /// (e.g. `showModalBottomSheet(backgroundColor: AppColors.surfaceOf(context))`).
+  static Color surfaceOf(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? surfaceDark : surface;
 }

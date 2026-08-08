@@ -49,6 +49,12 @@ dependencies:
   # Share the branded progress card image via the system share sheet.
   share_plus: ^10.0.0
 
+  # Spoken workout cues — announces the next exercise (web + mobile).
+  flutter_tts: ^4.0.2
+
+  # Soft chime for the breathing/workout timers (web + mobile).
+  audioplayers: ^6.1.0
+
   # ---------------------------------------------------------------
   # Backend (Firebase) — wire these up once you run `flutterfire
   # configure`. The app runs WITHOUT them thanks to the mock
@@ -91,6 +97,7 @@ flutter:
   assets:
     - assets/images/
     - assets/data/
+    - assets/sounds/
 
 # ---------------------------------------------------------------------------
 # App icon generation. Put your company logo at assets/icon/logo.png (a square
@@ -98,11 +105,15 @@ flutter:
 # it automatically. If the file is absent, the default icon is kept.
 # ---------------------------------------------------------------------------
 flutter_launcher_icons:
-  image_path: "assets/icon/logo.png"
+  # Simplified icon (lotus + DAYJOY + Fit90, fine print removed) fitted inside
+  # Android's circular icon mask so the whole mark stays visible and legible.
+  # Generated from logo.png. To switch back to the full logo, point these at
+  # logo_icon.png / logo_foreground.png instead.
+  image_path: "assets/icon/logo_simple_icon.png"
   android: true
   min_sdk_android: 26
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/icon/logo.png"
+  adaptive_icon_foreground: "assets/icon/logo_simple_foreground.png"
   # iOS/web icons are generated later during those builds; add here when ready:
   # ios: true
   # web:

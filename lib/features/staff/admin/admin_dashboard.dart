@@ -12,7 +12,10 @@ import '../../diet_charts/diet_chart_assessment_screen.dart';
 import '../../diet_charts/diet_chart_library_screen.dart';
 import '../../meals/edit_diet_plan_screen.dart';
 import '../../../shared/widgets/glass_card.dart';
+import '../../appointments/assisted_booking_screen.dart';
+import 'admin_revenue_screen.dart';
 import 'broadcast_screen.dart';
+import 'referral_economics_screen.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/stat_tile.dart';
 import '../../../state/repository_providers.dart';
@@ -37,6 +40,22 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       appBar: AppBar(
         title: Text(l.adminTitle),
         actions: [
+          IconButton(
+            tooltip: 'Revenue & subscriptions',
+            icon: const Icon(Icons.payments_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                  builder: (_) => const AdminRevenueScreen()),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Referral & BV economics',
+            icon: const Icon(Icons.calculate_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                  builder: (_) => const ReferralEconomicsScreen()),
+            ),
+          ),
           IconButton(
             tooltip: 'New announcement',
             icon: const Icon(Icons.campaign_rounded),
@@ -265,6 +284,19 @@ class _ParticipantsTabState extends ConsumerState<_ParticipantsTab> {
                   AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
               child: Text(p.name,
                   style: Theme.of(context).textTheme.titleLarge),
+            ),
+            ListTile(
+              leading: const Icon(Icons.support_agent_rounded,
+                  color: AppColors.primary),
+              title: const Text('Assisted booking (Care team)'),
+              subtitle: const Text('Book a consultation on their behalf'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => AssistedBookingScreen(participant: p)),
+                );
+              },
             ),
             ListTile(
               leading: const Icon(Icons.assignment_turned_in_rounded,

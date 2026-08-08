@@ -21,5 +21,13 @@ class _NoopNotificationService implements NotificationService {
   }) async {}
 
   @override
+  Future<void> scheduleOnceAt({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime when,
+  }) async {}
+
+  @override
   Future<void> cancel(int id) async {}
 }

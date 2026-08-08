@@ -6,21 +6,23 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/models/appointment.dart';
+import '../../shared/widgets/app_snack.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../state/appointments_provider.dart';
 import '../../state/providers.dart';
 import '../../state/repository_providers.dart';
+import 'consult_slots.dart';
+import 'my_appointments_screen.dart';
 
-/// Time slots offered for booking.
-const List<({String label, int hour})> _slots = [
-  (label: '9:00 AM', hour: 9),
-  (label: '10:00 AM', hour: 10),
-  (label: '11:00 AM', hour: 11),
-  (label: '4:00 PM', hour: 16),
-  (label: '5:00 PM', hour: 17),
-  (label: '6:00 PM', hour: 18),
-  (label: '7:00 PM', hour: 19),
-];
+/// An appointment is "open" (blocks a second booking with the same provider)
+/// until it is completed or cancelled.
+bool _isOpenAppointment(AppointmentStatus s) =>
+    s == AppointmentStatus.requested ||
+    s == AppointmentStatus.confirmed ||
+    s == AppointmentStatus.rescheduled;
+
+// Consultation slots (10 AM–6 PM IST) come from the shared kConsultSlots list.
 
 const List<String> _coachTypes = [
   'Yoga',
@@ -56,6 +58,7 @@ class BookAppointmentScreen extends ConsumerStatefulWidget {
 
 class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
   String? _type;
+  ConsultMode _mode = ConsultMode.videoCall;
   late DateTime _date = DateTime.now();
   ({String label, int hour})? _slot;
   final TextEditingController _notes = TextEditingController();
@@ -78,12 +81,41 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
           content: Text('Please choose a type and a time slot.')));
       return;
     }
+    // Advance booking paused after repeated no-shows.
+    final restriction = ref.read(bookingRestrictionProvider);
+    if (restriction.restricted) {
+      showAppSnack(
+        context,
+        'Advance booking is temporarily paused after repeated missed '
+        'appointments. Please try again later.',
+        type: AppSnackType.info,
+      );
+      return;
+    }
+    // One pending appointment per provider at a time.
+    final mine = ref.read(myAppointmentsProvider).valueOrNull ?? const [];
+    if (mine.any((a) =>
+        a.providerRole == widget.providerRole &&
+        _isOpenAppointment(a.status))) {
+      showAppSnack(
+        context,
+        'You already have a pending ${_isCoach ? 'trainer' : 'doctor'} '
+        'appointment. Complete or cancel it before booking another.',
+        type: AppSnackType.info,
+      );
+      return;
+    }
     setState(() => _submitting = true);
 
     final participant = ref.read(participantProvider);
     final uid = ref.read(authUidProvider) ?? 'demo-user';
     final scheduled =
         DateTime(_date.year, _date.month, _date.day, _slot!.hour);
+
+    // Private, hard-to-guess room shared by participant and provider.
+    final room = 'DayjoyFit90'
+        '${_isCoach ? 'Trainer' : 'Doctor'}'
+        '${scheduled.millisecondsSinceEpoch}';
 
     final appointment = Appointment(
       id: 'a-${scheduled.millisecondsSinceEpoch}',
@@ -95,6 +127,9 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
       requestedAt: DateTime.now(),
       scheduledAt: scheduled,
       status: AppointmentStatus.requested,
+      mode: _mode,
+      meetingRoom: room,
+      notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
     );
 
     await ref.read(appointmentBookingRepositoryProvider).book(appointment);
@@ -130,7 +165,9 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                   textAlign: TextAlign.center),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                '$_providerName will confirm your $_type on $when.',
+                '$_providerName will confirm your ${_mode.label.toLowerCase()} '
+                '($_type) on $when. You\'ll get a "Join" button here at call '
+                'time.',
                 style: Theme.of(context).textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),
@@ -151,6 +188,16 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
     final TextTheme text = Theme.of(context).textTheme;
     final days = List.generate(14, (i) => DateTime.now().add(Duration(days: i)));
 
+    // One pending appointment per provider at a time (§5 operational safeguard).
+    final mine = ref.watch(myAppointmentsProvider).valueOrNull ?? const [];
+    final bool hasPending = mine.any((a) =>
+        a.providerRole == widget.providerRole &&
+        _isOpenAppointment(a.status));
+
+    // Advance booking paused after repeated no-shows (§5 fair-use safeguard).
+    final restriction = ref.watch(bookingRestrictionProvider);
+    final bool blocked = hasPending || restriction.restricted;
+
     return Scaffold(
       appBar: AppBar(title: Text('Book with $_providerName')),
       body: ListView(
@@ -158,6 +205,51 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
             AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xxl),
         children: [
           const SizedBox(height: AppSpacing.md),
+          if (restriction.restricted) ...[
+            GlassCard(
+              child: Row(
+                children: [
+                  const Icon(Icons.event_busy_rounded, color: AppColors.error),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Text(
+                      'Advance booking is paused after '
+                      '${restriction.recentNoShows} missed appointments. '
+                      'You can book again after '
+                      '${DateFormat('EEE d MMM').format(restriction.until ?? DateTime.now())}.',
+                      style: text.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+          if (hasPending) ...[
+            GlassCard(
+              child: Row(
+                children: [
+                  const Icon(Icons.info_rounded, color: AppColors.info),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Text(
+                      'You already have a pending ${_isCoach ? 'trainer' : 'doctor'} '
+                      'appointment. Complete or cancel it before booking a new one.',
+                      style: text.bodySmall,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute<void>(
+                          builder: (_) => const MyAppointmentsScreen()),
+                    ),
+                    child: const Text('View'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
 
           // Provider card
           GlassCard(
@@ -186,6 +278,36 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+
+          // Consultation mode: video or voice — both happen inside the app.
+          const SectionHeader(title: 'How would you like to consult?'),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: _ModeCard(
+                  icon: Icons.videocam_rounded,
+                  label: 'Video call',
+                  sub: 'Face to face',
+                  selected: _mode == ConsultMode.videoCall,
+                  onTap: () =>
+                      setState(() => _mode = ConsultMode.videoCall),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: _ModeCard(
+                  icon: Icons.call_rounded,
+                  label: 'Voice call',
+                  sub: 'Audio only',
+                  selected: _mode == ConsultMode.audioCall,
+                  onTap: () =>
+                      setState(() => _mode = ConsultMode.audioCall),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.xl),
 
@@ -269,12 +391,16 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
 
           // Time slot
           const SectionHeader(title: 'Select time slot'),
+          const SizedBox(height: 4),
+          Text('Consultations are available 10 AM–6 PM IST on operating days.',
+              style: text.bodySmall
+                  ?.copyWith(color: AppColors.textSecondary)),
           const SizedBox(height: AppSpacing.md),
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.xs,
             children: [
-              for (final s in _slots)
+              for (final s in kConsultSlots)
                 ChoiceChip(
                   label: Text(s.label),
                   selected: _slot?.label == s.label,
@@ -303,16 +429,78 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
           const SizedBox(height: AppSpacing.xl),
 
           FilledButton(
-            onPressed: _submitting ? null : _submit,
+            onPressed: (_submitting || blocked) ? null : _submit,
             child: _submitting
                 ? const SizedBox(
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white))
-                : const Text('Confirm booking'),
+                : Text(restriction.restricted
+                    ? 'Booking paused'
+                    : (hasPending
+                        ? 'Finish your pending booking first'
+                        : 'Confirm booking')),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A selectable video/voice mode tile.
+class _ModeCard extends StatelessWidget {
+  const _ModeCard({
+    required this.icon,
+    required this.label,
+    required this.sub,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String sub;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color base =
+        isDark ? AppColors.surfaceMutedDark : AppColors.surfaceMuted;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.lg, horizontal: AppSpacing.md),
+        decoration: BoxDecoration(
+          gradient: selected ? AppColors.brandGradient : null,
+          color: selected ? null : base,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(
+            color: selected ? Colors.transparent : Colors.black.withOpacity(0.05),
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon,
+                color: selected ? Colors.white : AppColors.primary, size: 28),
+            const SizedBox(height: AppSpacing.sm),
+            Text(label,
+                style: TextStyle(
+                    color: selected ? Colors.white : null,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 2),
+            Text(sub,
+                style: TextStyle(
+                    color: selected
+                        ? Colors.white.withOpacity(0.85)
+                        : AppColors.textSecondary,
+                    fontSize: 12)),
+          ],
+        ),
       ),
     );
   }

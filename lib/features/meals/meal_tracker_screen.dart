@@ -1,12 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/models/participant.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../state/meal_photos_provider.dart';
 import '../../state/meal_provider.dart';
 import '../../state/providers.dart';
+import 'food_diary_screen.dart';
 import 'food_search_sheet.dart';
 import 'meal_data.dart';
 import 'weekly_nutrition_screen.dart';
@@ -27,6 +32,14 @@ class MealTrackerScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Meal Tracker'),
         actions: [
+          IconButton(
+            tooltip: 'Food diary',
+            icon: const Icon(Icons.menu_book_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                  builder: (_) => const FoodDiaryScreen()),
+            ),
+          ),
           IconButton(
             tooltip: 'This week',
             icon: const Icon(Icons.insights_rounded),
@@ -169,7 +182,7 @@ class _SummaryCard extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.surfaceOf(context),
       builder: (ctx) {
         final TextTheme t = Theme.of(ctx).textTheme;
         return Padding(
@@ -306,6 +319,7 @@ class _MealSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final TextTheme text = Theme.of(context).textTheme;
     final int kcal = logs.fold(0, (s, l) => s + l.kcal);
+    final String? photo = ref.watch(mealPhotosProvider)[type];
 
     return GlassCard(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -327,8 +341,35 @@ class _MealSection extends ConsumerWidget {
                 Text('$kcal kcal',
                     style: text.bodyMedium
                         ?.copyWith(fontWeight: FontWeight.w700)),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Photo of your ${type.label.toLowerCase()}',
+                icon: Icon(
+                    photo == null
+                        ? Icons.photo_camera_outlined
+                        : Icons.photo_camera_rounded,
+                    color: AppColors.primary),
+                onPressed: () => photo == null
+                    ? _capturePhoto(context, ref, type)
+                    : _photoOptions(context, ref, type, photo),
+              ),
             ],
           ),
+          if (photo != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            GestureDetector(
+              onTap: () => _viewPhoto(context, photo),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                child: Image.memory(
+                  base64Decode(photo),
+                  height: 150,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ],
           if (logs.isNotEmpty) const SizedBox(height: AppSpacing.sm),
           for (final log in logs)
             Padding(
@@ -389,6 +430,93 @@ class _MealSection extends ConsumerWidget {
       context,
       onPick: (food, servings) =>
           ref.read(mealLogProvider.notifier).add(type, food, servings),
+    );
+  }
+
+  Future<void> _capturePhoto(
+      BuildContext context, WidgetRef ref, MealType type,
+      {ImageSource source = ImageSource.camera}) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final XFile? x = await ImagePicker()
+          .pickImage(source: source, maxWidth: 1280, imageQuality: 70);
+      if (x != null) {
+        final bytes = await x.readAsBytes();
+        ref
+            .read(mealPhotosProvider.notifier)
+            .setPhoto(type, base64Encode(bytes));
+      }
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not add the photo on this device.')),
+      );
+    }
+  }
+
+  void _viewPhoto(BuildContext context, String data) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(AppSpacing.lg),
+        child: GestureDetector(
+          onTap: () => Navigator.pop(ctx),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: Image.memory(base64Decode(data), fit: BoxFit.contain),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _photoOptions(
+      BuildContext context, WidgetRef ref, MealType type, String data) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: AppColors.surfaceOf(context),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.fullscreen_rounded),
+              title: const Text('View photo'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _viewPhoto(context, data);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_rounded),
+              title: const Text('Retake with camera'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _capturePhoto(context, ref, type);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text('Choose from gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _capturePhoto(context, ref, type,
+                    source: ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded,
+                  color: AppColors.error),
+              title: const Text('Remove photo'),
+              onTap: () {
+                ref.read(mealPhotosProvider.notifier).removePhoto(type);
+                Navigator.pop(ctx);
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

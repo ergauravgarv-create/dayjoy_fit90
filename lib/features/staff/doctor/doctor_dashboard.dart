@@ -15,7 +15,14 @@ import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/stat_tile.dart';
 import '../../../state/repository_providers.dart';
 import '../../../state/staff_providers.dart';
+import '../../../state/supplement_provider.dart';
+import '../../supplements/supplement_review_screen.dart';
+import '../consult_note_sheet.dart';
 import '../widgets/staff_widgets.dart';
+
+/// Anchors the "Consultation requests" section so the new-booking banner can
+/// scroll straight to it. Stable across rebuilds (only one dashboard is live).
+final GlobalKey _doctorRequestsKey = GlobalKey();
 
 class DoctorDashboard extends ConsumerWidget {
   const DoctorDashboard({super.key});
@@ -23,10 +30,23 @@ class DoctorDashboard extends ConsumerWidget {
   Future<void> _setStatus(WidgetRef ref, String id, AppointmentStatus s) =>
       ref.read(staffRepositoryProvider).updateAppointmentStatus(id, s);
 
+  void _scrollToRequests() {
+    final ctx = _doctorRequestsKey.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOutCubic,
+        alignment: 0.05,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final roster = ref.watch(rosterProvider);
     final appts = ref.watch(doctorAppointmentsProvider);
+    final pendingSupp = ref.watch(pendingSupplementRequestsProvider);
     final l = AppLocalizations.of(context);
 
     return Scaffold(
@@ -44,6 +64,14 @@ class DoctorDashboard extends ConsumerWidget {
             icon: Icons.medical_services_rounded,
           ),
           const SizedBox(height: AppSpacing.lg),
+
+          // New booking alert (clears once all requests are handled).
+          NewBookingsBanner(
+            requests: (appts.valueOrNull ?? const [])
+                .where((a) => a.status == AppointmentStatus.requested)
+                .toList(),
+            onTap: _scrollToRequests,
+          ),
 
           Row(
             children: [
@@ -77,7 +105,8 @@ class DoctorDashboard extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.xl),
 
-          SectionHeader(title: l.secConsultationRequests),
+          SectionHeader(
+              key: _doctorRequestsKey, title: l.secConsultationRequests),
           const SizedBox(height: AppSpacing.md),
           appts.when(
             loading: () => const _Loading(),
@@ -108,6 +137,66 @@ class DoctorDashboard extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.xl),
 
+          const SectionHeader(title: 'Dayjoy supplement requests'),
+          const SizedBox(height: AppSpacing.md),
+          if (pendingSupp.isEmpty)
+            const _EmptyCard(text: 'No supplement consultations pending.')
+          else
+            Column(
+              children: [
+                for (final r in pendingSupp)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: GlassCard(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                            builder: (_) =>
+                                SupplementReviewScreen(request: r)),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor:
+                                AppColors.orange.withOpacity(0.14),
+                            child: Icon(
+                                r.kind == 'skin'
+                                    ? Icons.face_retouching_natural_rounded
+                                    : Icons.medication_liquid_rounded,
+                                color: AppColors.orange),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(r.conditions.join(', '),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis),
+                                Text(
+                                    '${r.kind == 'skin' ? 'Skin routine' : 'Supplement'}'
+                                    ' · ${r.items.length} products'
+                                    '${r.reportPhoto != null ? ' · ${r.kind == 'skin' ? 'face photo' : 'report'} attached' : ''}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                            color: AppColors.textSecondary)),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.rate_review_rounded,
+                              color: AppColors.primary),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          const SizedBox(height: AppSpacing.xl),
+
           SectionHeader(title: l.secTodayConsults),
           const SizedBox(height: AppSpacing.md),
           appts.when(
@@ -129,6 +218,10 @@ class DoctorDashboard extends ConsumerWidget {
                         appointment: a,
                         onComplete: () =>
                             _setStatus(ref, a.id, AppointmentStatus.completed),
+                        onNoShow: () =>
+                            _setStatus(ref, a.id, AppointmentStatus.noShow),
+                        onAddNote: () =>
+                            showConsultationNoteSheet(context, ref, a),
                       ),
                     ),
                 ],

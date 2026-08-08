@@ -11,6 +11,7 @@ import '../../../data/models/participant.dart';
 import '../../../l10n/gen/app_localizations.dart';
 import '../../../shared/widgets/glass_card.dart';
 import '../../../state/providers.dart';
+import '../../appointments/consult_actions.dart';
 
 /// Sign-out button shared by all staff dashboards.
 class StaffSignOutAction extends ConsumerWidget {
@@ -81,12 +82,16 @@ class AppointmentCard extends StatelessWidget {
     this.onConfirm,
     this.onDecline,
     this.onComplete,
+    this.onAddNote,
+    this.onNoShow,
   });
 
   final Appointment appointment;
   final VoidCallback? onConfirm;
   final VoidCallback? onDecline;
   final VoidCallback? onComplete;
+  final VoidCallback? onAddNote;
+  final VoidCallback? onNoShow;
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +121,7 @@ class AppointmentCard extends StatelessWidget {
                   children: [
                     Text(appointment.participantName, style: text.titleMedium),
                     Text(
-                      '${appointment.type}'
+                      '${appointment.type} · ${appointment.mode.label}'
                       '${appointment.participantCity != null ? ' · ${appointment.participantCity}' : ''}',
                       style: text.bodySmall,
                     ),
@@ -140,35 +145,87 @@ class AppointmentCard extends StatelessWidget {
               ],
             ),
           ],
-          if (requested || confirmed) ...[
+          if (appointment.providerNote != null &&
+              appointment.providerNote!.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            _NotePreview(
+                note: appointment.providerNote!,
+                followUpAt: appointment.followUpAt),
+          ],
+          if (requested) ...[
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
-                if (requested) ...[
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: onDecline,
-                      child: Text(l.actionDecline),
-                    ),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onDecline,
+                    child: Text(l.actionDecline),
                   ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: onConfirm,
+                    child: Text(l.actionConfirm),
+                  ),
+                ),
+              ],
+            ),
+          ] else if (confirmed) ...[
+            const SizedBox(height: AppSpacing.md),
+            if (appointment.meetingUrl != null) ...[
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => joinConsultation(context, appointment),
+                  icon: Icon(
+                      appointment.mode == ConsultMode.videoCall
+                          ? Icons.videocam_rounded
+                          : Icons.call_rounded,
+                      size: 18),
+                  label: const Text('Join call'),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onComplete,
+                    icon: const Icon(Icons.check_rounded, size: 18),
+                    label: Text(l.actionMarkComplete),
+                  ),
+                ),
+                if (onNoShow != null) ...[
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
-                    child: FilledButton(
-                      onPressed: onConfirm,
-                      child: Text(l.actionConfirm),
-                    ),
-                  ),
-                ] else if (confirmed) ...[
-                  Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: onComplete,
-                      icon: const Icon(Icons.check_rounded, size: 18),
-                      label: Text(l.actionMarkComplete),
+                      onPressed: onNoShow,
+                      icon: const Icon(Icons.event_busy_rounded, size: 18),
+                      label: const Text('No-show'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                        side: BorderSide(color: AppColors.error.withOpacity(0.4)),
+                      ),
                     ),
                   ),
                 ],
               ],
             ),
+            if (onAddNote != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onAddNote,
+                  icon: const Icon(Icons.edit_note_rounded, size: 20),
+                  label: Text(appointment.providerNote == null
+                      ? 'Add note & prescription'
+                      : 'Edit note'),
+                ),
+              ),
+            ],
           ],
         ],
       ),
@@ -189,6 +246,7 @@ class _StatusPill extends StatelessWidget {
       AppointmentStatus.completed => AppColors.success,
       AppointmentStatus.cancelled => AppColors.error,
       AppointmentStatus.rescheduled => AppColors.taskYoga,
+      AppointmentStatus.noShow => AppColors.error,
     };
     final String label = switch (status) {
       AppointmentStatus.requested => l.statusRequested,
@@ -196,6 +254,7 @@ class _StatusPill extends StatelessWidget {
       AppointmentStatus.completed => l.statusCompleted,
       AppointmentStatus.cancelled => l.statusCancelled,
       AppointmentStatus.rescheduled => l.statusRescheduled,
+      AppointmentStatus.noShow => 'No-show',
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -206,6 +265,61 @@ class _StatusPill extends StatelessWidget {
       child: Text(label,
           style: TextStyle(
               color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+    );
+  }
+}
+
+/// Shows a saved consultation note/prescription inside an appointment card.
+class _NotePreview extends StatelessWidget {
+  const _NotePreview({required this.note, this.followUpAt});
+  final String note;
+  final DateTime? followUpAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.info.withOpacity(isDark ? 0.16 : 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.info.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.sticky_note_2_rounded,
+                  size: 18, color: AppColors.info),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(note,
+                    style: Theme.of(context).textTheme.bodySmall),
+              ),
+            ],
+          ),
+          if (followUpAt != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.event_available_rounded,
+                    size: 14, color: AppColors.info),
+                const SizedBox(width: 6),
+                Text(
+                  'Follow-up: ${DateFormat('EEE, d MMM yyyy').format(followUpAt!)}',
+                  style: const TextStyle(
+                      color: AppColors.info,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -273,6 +387,84 @@ class RosterTile extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A prominent "new booking request(s)" alert shown at the top of the coach /
+/// doctor dashboards whenever there are pending (requested) bookings. It clears
+/// automatically once every request has been confirmed or declined.
+class NewBookingsBanner extends StatelessWidget {
+  const NewBookingsBanner({super.key, required this.requests, this.onTap});
+
+  final List<Appointment> requests;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (requests.isEmpty) return const SizedBox.shrink();
+
+    final sorted = [...requests]
+      ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+    final top = sorted.first;
+    final int n = requests.length;
+    final int others = n - 1;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: GlassCard(
+        gradient: AppColors.goldGradient,
+        onTap: onTap,
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.22),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.notifications_active_rounded,
+                  color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    n == 1 ? 'New booking request' : '$n new booking requests',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${top.participantName} · ${top.type} · ${top.mode.label}'
+                    '${others > 0 ? '  +$others more' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.white.withOpacity(0.92)),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.22),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+              child: Text('$n',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16)),
+            ),
+          ],
+        ),
       ),
     );
   }

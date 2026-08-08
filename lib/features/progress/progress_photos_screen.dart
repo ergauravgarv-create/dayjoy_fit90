@@ -8,6 +8,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../state/progress_photos_provider.dart';
+import 'photo_compare_screen.dart';
 
 class ProgressPhotosScreen extends ConsumerStatefulWidget {
   const ProgressPhotosScreen({super.key});
@@ -46,7 +47,7 @@ class _ProgressPhotosScreenState extends ConsumerState<ProgressPhotosScreen> {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.surfaceOf(context),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -138,17 +139,33 @@ class _ProgressPhotosScreenState extends ConsumerState<ProgressPhotosScreen> {
                   Text('Before & after', style: text.titleMedium),
                   const SizedBox(height: AppSpacing.md),
                   GlassCard(
-                    child: Row(
+                    child: Column(
                       children: [
-                        Expanded(
-                            child: _Frame(
-                                photo: photos.first, caption: 'First')),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                            child: _Frame(
-                                photo: photos.last,
-                                caption: 'Latest',
-                                highlight: true)),
+                        Row(
+                          children: [
+                            Expanded(
+                                child: _Frame(
+                                    photo: photos.first, caption: 'First')),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                                child: _Frame(
+                                    photo: photos.last,
+                                    caption: 'Latest',
+                                    highlight: true)),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                  builder: (_) => const PhotoCompareScreen()),
+                            ),
+                            icon: const Icon(Icons.compare_rounded, size: 20),
+                            label: const Text('Compare & share'),
+                          ),
+                        ),
                       ],
                     ),
                   ),

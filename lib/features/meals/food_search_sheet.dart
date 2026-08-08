@@ -18,7 +18,7 @@ Future<void> showFoodSearch(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    backgroundColor: AppColors.surface,
+    backgroundColor: AppColors.surfaceOf(context),
     builder: (_) =>
         _FoodSearchSheet(onPick: onPick, filter: filter, snackbar: snackbar),
   );
@@ -43,31 +43,46 @@ class _FoodSearchSheetState extends State<_FoodSearchSheet> {
   String _cat = 'All';
 
   static const List<String> _catFilters = [
-    'All', 'DayJoy', 'Veg', 'Non-veg', 'Breakfast', 'Mains', 'Snacks',
+    'All', 'Dayjoy', 'Veg', 'Non-veg', 'Breakfast', 'Mains', 'Snacks',
     'Sweets', 'Drinks',
   ];
+
+  // Keyword buckets that map every food category (base + the imported
+  // subcategories like "Rice dishes", "Burgers", "Tea, coffee…") to a chip.
+  static const Map<String, List<String>> _chipKeywords = {
+    'Breakfast': ['breakfast'],
+    'Mains': [
+      'main', 'lunch', 'dinner', 'rice', 'curry', 'curries', 'biryani',
+      'wrap', 'roll', 'bread', 'roti', 'naan', 'burger', 'pizza', 'taco',
+      'pasta', 'noodle', 'indo-chinese', 'dal', 'legume', 'thali', 'gravy',
+      'sabzi',
+    ],
+    'Snacks': [
+      'snack', 'starter', 'street food', 'bar', 'momo', 'dumpling', 'chaat',
+      'pakora', 'samosa', 'tikki',
+    ],
+    'Sweets': ['sweet', 'dessert', 'mithai', 'halwa', 'kheer'],
+    'Drinks': [
+      'drink', 'beverage', 'tea', 'coffee', 'juice', 'shake', 'smoothie',
+      'refresher', 'lassi',
+    ],
+  };
 
   bool _passesCat(FoodItem f) {
     final String c = f.category.toLowerCase();
     switch (_cat) {
-      case 'DayJoy':
+      case 'Dayjoy':
         return c.contains('dayjoy') || c.contains('product');
       case 'Veg':
         return f.isVeg;
       case 'Non-veg':
         return !f.isVeg;
       case 'Breakfast':
-        return c.contains('breakfast');
       case 'Mains':
-        return c.contains('lunch') ||
-            c.contains('dinner') ||
-            c.contains('main');
       case 'Snacks':
-        return c.contains('snack') || c.contains('starter');
       case 'Sweets':
-        return c.contains('dessert') || c.contains('sweet');
       case 'Drinks':
-        return c.contains('beverage') || c.contains('drink');
+        return _chipKeywords[_cat]!.any(c.contains);
       default:
         return true;
     }
@@ -78,7 +93,7 @@ class _FoodSearchSheetState extends State<_FoodSearchSheet> {
     final TextTheme text = Theme.of(context).textTheme;
     final double bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final String q = _query.trim().toLowerCase();
-    final List<FoodItem> results = kIndianFoods
+    final List<FoodItem> results = kAllFoods
         .where((f) => widget.filter == null || widget.filter!(f))
         .where(_passesCat)
         .where((f) => q.isEmpty || f.name.toLowerCase().contains(q))

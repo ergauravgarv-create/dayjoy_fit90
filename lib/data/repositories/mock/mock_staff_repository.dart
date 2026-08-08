@@ -23,10 +23,49 @@ class MockStaffRepository implements StaffRepository {
   }
 
   @override
+  Stream<List<Appointment>> watchParticipantAppointments(String participantId) {
+    List<Appointment> mine() => MockData.appointments
+        .where((a) => a.participantId == participantId)
+        .toList();
+    scheduleMicrotask(() => _appts.add(MockData.appointments));
+    return _appts.stream.map((_) => mine());
+  }
+
+  @override
   Future<void> updateAppointmentStatus(String id, AppointmentStatus status) async {
     final i = MockData.appointments.indexWhere((a) => a.id == id);
     if (i >= 0) {
-      MockData.appointments[i] = MockData.appointments[i].copyWith(status: status);
+      MockData.appointments[i] = MockData.appointments[i].copyWith(
+        status: status,
+        confirmedAt:
+            status == AppointmentStatus.confirmed ? DateTime.now() : null,
+      );
+      _appts.add(MockData.appointments);
+    }
+  }
+
+  @override
+  Future<void> rescheduleAppointment(String id, DateTime newScheduledAt) async {
+    final i = MockData.appointments.indexWhere((a) => a.id == id);
+    if (i >= 0) {
+      MockData.appointments[i] = MockData.appointments[i].copyWith(
+        scheduledAt: newScheduledAt,
+        status: AppointmentStatus.requested,
+      );
+      _appts.add(MockData.appointments);
+    }
+  }
+
+  @override
+  Future<void> addConsultationNote(String id, String note,
+      {DateTime? followUpAt}) async {
+    final i = MockData.appointments.indexWhere((a) => a.id == id);
+    if (i >= 0) {
+      MockData.appointments[i] = MockData.appointments[i].copyWith(
+        providerNote: note,
+        noteAt: DateTime.now(),
+        followUpAt: followUpAt,
+      );
       _appts.add(MockData.appointments);
     }
   }
