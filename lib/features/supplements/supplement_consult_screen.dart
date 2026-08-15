@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../services/ocr/ocr_service.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../state/supplement_chart_data.dart';
 import '../../state/supplement_provider.dart';
@@ -25,17 +26,20 @@ void showProductInfoSheet(BuildContext context, String product) {
     builder: (ctx) {
       final text = Theme.of(ctx).textTheme;
       return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.medication_liquid_rounded,
-                      color: AppColors.primary),
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.8),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.medication_liquid_rounded,
+                        color: AppColors.primary),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(child: Text(product, style: text.titleLarge)),
                 ],
@@ -87,11 +91,51 @@ void showProductInfoSheet(BuildContext context, String product) {
               ),
             ],
           ),
+          ),
         ),
       );
     },
   );
 }
+
+/// Keyword hints → health condition, for the light text-based AI screening of
+/// the user's described symptoms. Keys are labels from [kSupplementConditions].
+const Map<String, List<String>> _healthKeywords = {
+  'Diabetes': ['diabet', 'sugar', 'glucose', 'hba1c', 'insulin'],
+  'Heart Disease': [
+    'heart', 'cardiac', 'blood pressure', 'hypertension', 'cholesterol',
+    'chest pain', 'bp '
+  ],
+  'Bone & Joint Problems': [
+    'bone', 'joint', 'knee', 'arthritis', 'back pain', 'calcium'
+  ],
+  'Liver Disease': ['liver', 'fatty liver', 'sgpt', 'sgot', 'bilirubin', 'jaundice'],
+  'Digestion (Indigestion / Acidity)': [
+    'acidity', 'gas', 'indigestion', 'bloating', 'gastric', 'heartburn', 'acid'
+  ],
+  'Piles / Fissure': ['piles', 'fissure', 'hemorrhoid', 'haemorrhoid'],
+  'Low Immunity': ['immunity', 'frequent cold', 'infection', 'weak immune'],
+  'Respiratory Health': ['asthma', 'breathing', 'cough', 'lungs', 'respirat', 'bronch'],
+  'Female Health (Weakness / Anaemia)': [
+    'anaemia', 'anemia', 'hemoglobin', 'haemoglobin', 'iron', 'weakness'
+  ],
+  'Female Health (Hormonal Imbalance)': ['pcod', 'pcos', 'hormonal', 'period', 'menstru'],
+  'Weight Management': ['weight', 'obesity', 'obese', 'overweight'],
+  'Skin Problems': ['skin', 'acne', 'pimple', 'eczema', 'rash'],
+  'Brain Health / Cognitive': [
+    'memory', 'focus', 'concentration', 'brain', 'stress', 'anxiety'
+  ],
+  'Kidney (Stone / Uric Acid / UTI)': [
+    'kidney', 'stone', 'uric acid', 'uti', 'creatinine', 'urine'
+  ],
+  'Thyroid (Hypothyroidism)': ['thyroid', 'tsh', 'hypothyroid'],
+  'Eye Health': ['eye', 'vision', 'eyesight'],
+  'Healthy Sleep': ['sleep', 'insomnia'],
+  'Hair / Nail Health': ['hair fall', 'hairfall', 'dandruff', 'nail'],
+  'Sinusitis': ['sinus'],
+  'Sciatica': ['sciatica'],
+  'Varicose Veins': ['varicose'],
+};
 
 class SupplementConsultScreen extends ConsumerStatefulWidget {
   const SupplementConsultScreen({super.key});
@@ -104,8 +148,64 @@ class SupplementConsultScreen extends ConsumerStatefulWidget {
 class _SupplementConsultScreenState
     extends ConsumerState<SupplementConsultScreen> {
   final Set<String> _selected = {};
+  final Set<String> _aiConcerns = {}; // flagged by the AI screening
+  final TextEditingController _comment = TextEditingController();
+  final OcrService _ocr = createOcrService();
   String? _reportPhoto;
   bool _busy = false;
+  bool _aiRunning = false;
+  bool _hasAnalyzed = false;
+  bool _submitting = false;
+  bool _consent = false;
+  bool _reportRead = false; // OCR pulled text from the attached report
+
+  @override
+  void dispose() {
+    _comment.dispose();
+    super.dispose();
+  }
+
+  /// Light AI screening: reads the described symptoms and flags matching
+  /// health conditions. Not a diagnosis — the doctor reviews everything and
+  /// reads any attached report.
+  Future<void> _runAiAnalysis() async {
+    if (_comment.text.trim().isEmpty && _reportPhoto == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Describe your symptoms or attach a report first.')),
+      );
+      return;
+    }
+    if (!_consent) return;
+    setState(() => _aiRunning = true);
+
+    // Read the attached medical report on-device (OCR), then screen the
+    // combined report text + typed symptoms for health-condition keywords.
+    String reportText = '';
+    if (_reportPhoto != null) {
+      reportText = await _ocr.extractText(base64Decode(_reportPhoto!));
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+
+    final input = '${_comment.text} $reportText'.toLowerCase();
+    final flagged = <String>[];
+    for (final e in _healthKeywords.entries) {
+      if (e.value.any((k) => input.contains(k))) flagged.add(e.key);
+    }
+    final detected =
+        flagged.where(kSupplementConditions.contains).take(6).toList();
+    setState(() {
+      _aiRunning = false;
+      _hasAnalyzed = true;
+      _reportRead = reportText.trim().isNotEmpty;
+      _aiConcerns
+        ..clear()
+        ..addAll(detected);
+      _selected.addAll(detected);
+    });
+  }
 
   Future<void> _attach(ImageSource source) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -126,17 +226,32 @@ class _SupplementConsultScreenState
     }
   }
 
-  void _submit() {
-    if (_selected.isEmpty) {
+  Future<void> _submit() async {
+    if (!_consent) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one health issue.')),
+        const SnackBar(content: Text('Please give consent above to continue.')),
       );
       return;
     }
+    if (_selected.isEmpty &&
+        _comment.text.trim().isEmpty &&
+        _reportPhoto == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Select an issue, describe symptoms, or attach a report.')),
+      );
+      return;
+    }
+    setState(() => _submitting = true);
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    if (!mounted) return;
     final s = suggestFor(_selected.toList());
     final req = SupplementRequest(
       id: 's_${DateTime.now().millisecondsSinceEpoch}',
       conditions: _selected.toList(),
+      aiConcerns: _aiConcerns.toList(),
+      comment: _comment.text.trim().isEmpty ? null : _comment.text.trim(),
       items: s.items,
       eat: s.eat,
       avoid: s.avoid,
@@ -145,12 +260,19 @@ class _SupplementConsultScreenState
     );
     ref.read(supplementRequestsProvider.notifier).add(req);
     setState(() {
+      _submitting = false;
       _selected.clear();
+      _aiConcerns.clear();
+      _comment.clear();
       _reportPhoto = null;
+      _hasAnalyzed = false;
+      _consent = false;
+      _reportRead = false;
     });
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Sent to ${AppConstants.doctorName} for review.'),
+        content: Text('Report sent to ${AppConstants.doctorName} for review.'),
         backgroundColor: AppColors.success,
       ),
     );
@@ -184,6 +306,13 @@ class _SupplementConsultScreenState
             children: [
               for (final c in kSupplementConditions)
                 FilterChip(
+                  avatar: _aiConcerns.contains(c)
+                      ? Icon(Icons.auto_awesome_rounded,
+                          size: 14,
+                          color: _selected.contains(c)
+                              ? Colors.white
+                              : AppColors.primary)
+                      : null,
                   label: Text(c),
                   selected: _selected.contains(c),
                   selectedColor: AppColors.primary,
@@ -254,12 +383,141 @@ class _SupplementConsultScreenState
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
+
+          // Describe symptoms — feeds the AI screening.
+          Text('Describe your symptoms (optional)', style: text.titleMedium),
+          const SizedBox(height: AppSpacing.sm),
+          TextField(
+            controller: _comment,
+            maxLines: 3,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              hintText: 'e.g. frequent acidity, high sugar, joint pain…',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          // Consent — required before analysing / sharing health data.
+          GlassCard(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm, vertical: 2),
+            child: CheckboxListTile(
+              value: _consent,
+              onChanged: (v) => setState(() => _consent = v ?? false),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              activeColor: AppColors.primary,
+              title: Text(
+                'I consent to my health details and any report being analysed '
+                'and shared with ${AppConstants.doctorName} for review.',
+                style: text.bodySmall,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          // AI screening of the described symptoms.
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: (_aiRunning || !_consent) ? null : _runAiAnalysis,
+              icon: _aiRunning
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.auto_awesome_rounded),
+              label: Text(_aiRunning
+                  ? 'Analysing…'
+                  : (_hasAnalyzed ? 'Re-run AI analysis' : 'Analyse with AI')),
+            ),
+          ),
+          if (_hasAnalyzed) ...[
+            const SizedBox(height: AppSpacing.md),
+            GlassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.auto_awesome_rounded,
+                          size: 18, color: AppColors.primary),
+                      const SizedBox(width: 6),
+                      Text('AI screening result', style: text.titleSmall),
+                    ],
+                  ),
+                  if (_reportRead)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.document_scanner_rounded,
+                              size: 13, color: AppColors.success),
+                          const SizedBox(width: 4),
+                          Text('Read text from your report',
+                              style: text.bodySmall
+                                  ?.copyWith(color: AppColors.success)),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: AppSpacing.xs),
+                  if (_aiConcerns.isEmpty)
+                    Text(
+                        'No specific conditions detected from your text/report. '
+                        'The doctor will review your attached report and details.',
+                        style: text.bodySmall
+                            ?.copyWith(color: AppColors.textSecondary))
+                  else ...[
+                    Text('Flagged from your description (pre-selected above):',
+                        style: text.bodySmall
+                            ?.copyWith(color: AppColors.textSecondary)),
+                    const SizedBox(height: AppSpacing.xs),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        for (final c in _aiConcerns)
+                          Chip(
+                            avatar: const Icon(Icons.auto_awesome_rounded,
+                                size: 14, color: Colors.white),
+                            label: Text(c,
+                                style: const TextStyle(color: Colors.white)),
+                            backgroundColor: AppColors.primary,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'A screening from your described symptoms — not a '
+                    'diagnosis. The doctor reviews and approves.',
+                    style: text.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.lg),
+
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: _submit,
-              icon: const Icon(Icons.medical_information_rounded),
-              label: const Text('Get Dayjoy suggestion & send to doctor'),
+              onPressed: (_submitting || !_consent) ? null : _submit,
+              icon: _submitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.send_rounded),
+              label: Text(_submitting
+                  ? 'Sending report…'
+                  : (_consent
+                      ? 'Send report to doctor'
+                      : 'Give consent above to continue')),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),

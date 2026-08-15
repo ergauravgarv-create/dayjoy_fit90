@@ -88,6 +88,11 @@ dependencies:
   # the web build never compiles it, so dart2js stays clean.
   health: 11.0.0
 
+  # On-device OCR for medical-report photos (mobile only; web uses a no-op via
+  # conditional import). Left as a range — it's newly added, so let pub pick a
+  # compatible build first; pin it once a green build reveals the version.
+  google_mlkit_text_recognition: ^0.13.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

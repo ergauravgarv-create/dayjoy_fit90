@@ -32,6 +32,9 @@ class SupplementRequest {
     this.status = 'pending',
     this.doctorNote = '',
     this.kind = 'health', // 'health' | 'skin'
+    this.aiConcerns = const [],
+    this.comment,
+    this.bodyArea, // for skin: where on the body (Face, Hands, …)
     required this.createdAt,
     this.approvedAt,
   });
@@ -39,6 +42,17 @@ class SupplementRequest {
   final String id;
   final String kind;
   final List<String> conditions;
+
+  /// Skin concerns the AI screening flagged from the photo (subset of
+  /// [conditions]); the rest were added by the user.
+  final List<String> aiConcerns;
+
+  /// The user's free-text note to the doctor.
+  final String? comment;
+
+  /// For skin requests: the body area the photo is of (Face, Hands, Legs, …).
+  final String? bodyArea;
+
   List<SupplementItem> items;
   List<String> eat;
   List<String> avoid;
@@ -54,6 +68,9 @@ class SupplementRequest {
         'id': id,
         'kind': kind,
         'conditions': conditions,
+        'aiConcerns': aiConcerns,
+        'comment': comment,
+        'bodyArea': bodyArea,
         'items': items.map((e) => e.toJson()).toList(),
         'eat': eat,
         'avoid': avoid,
@@ -71,6 +88,11 @@ class SupplementRequest {
         conditions:
             (j['conditions'] as List?)?.map((e) => e as String).toList() ??
                 const [],
+        aiConcerns:
+            (j['aiConcerns'] as List?)?.map((e) => e as String).toList() ??
+                const [],
+        comment: j['comment'] as String?,
+        bodyArea: j['bodyArea'] as String?,
         items: (j['items'] as List?)
                 ?.map((e) => SupplementItem.fromJson(e as Map<String, dynamic>))
                 .toList() ??

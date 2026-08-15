@@ -12,6 +12,9 @@ void showAppSnack(
   String message, {
   AppSnackType type = AppSnackType.info,
 }) {
+  // Safe to call after an await: if the widget was unmounted meanwhile, do
+  // nothing instead of throwing "State no longer has a context".
+  if (!context.mounted) return;
   final (Color color, IconData icon) = switch (type) {
     AppSnackType.success => (AppColors.success, Icons.check_circle_rounded),
     AppSnackType.error => (AppColors.error, Icons.error_rounded),

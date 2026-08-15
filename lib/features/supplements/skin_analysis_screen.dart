@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:math' show sqrt;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +16,19 @@ import '../../state/supplement_chart_data.dart';
 import '../../state/supplement_provider.dart';
 import 'supplement_consult_screen.dart' show showProductInfoSheet;
 
+const List<String> _bodyAreas = [
+  'Face',
+  'Neck',
+  'Hands',
+  'Arms',
+  'Legs',
+  'Feet',
+  'Back',
+  'Chest',
+  'Scalp',
+  'Other',
+];
+
 class SkinAnalysisScreen extends ConsumerStatefulWidget {
   const SkinAnalysisScreen({super.key});
 
@@ -24,8 +40,20 @@ class SkinAnalysisScreen extends ConsumerStatefulWidget {
 class _SkinAnalysisScreenState extends ConsumerState<SkinAnalysisScreen> {
   String? _facePhoto;
   final Set<String> _concerns = {};
+  final Set<String> _aiConcerns = {}; // flagged by the AI screening
+  final TextEditingController _comment = TextEditingController();
   bool _busy = false;
   bool _analyzing = false;
+  bool _aiRunning = false;
+  bool _hasAnalyzed = false;
+  bool _consent = false; // explicit consent to process the photo
+  String _bodyArea = 'Face'; // which body area the photo is of
+
+  @override
+  void dispose() {
+    _comment.dispose();
+    super.dispose();
+  }
 
   Future<void> _capture(ImageSource source) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -46,22 +74,94 @@ class _SkinAnalysisScreenState extends ConsumerState<SkinAnalysisScreen> {
     }
   }
 
-  Future<void> _analyze() async {
+  /// Runs a lightweight on-device screening of the face photo and pre-selects
+  /// the concerns it flags. This is a heuristic wellness screen (colour/tone
+  /// signals), NOT a medical diagnosis — a doctor reviews everything.
+  Future<void> _runAiAnalysis() async {
     if (_facePhoto == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add a face photo first.')),
       );
       return;
     }
-    if (_concerns.isEmpty) {
+    if (!_consent) return;
+    setState(() => _aiRunning = true);
+    final detected = await _detectFromPhoto(
+        base64Decode(_facePhoto!), _bodyArea == 'Face');
+    // A brief pause so it reads as "analysing".
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    if (!mounted) return;
+    setState(() {
+      _aiRunning = false;
+      _hasAnalyzed = true;
+      _aiConcerns
+        ..clear()
+        ..addAll(detected);
+      _concerns.addAll(detected); // pre-select AI-flagged concerns
+    });
+  }
+
+  /// Very light colour/tone heuristic → a few skin concerns to review. Returns
+  /// concern labels from [kSkinConcerns]. Never throws.
+  Future<List<String>> _detectFromPhoto(Uint8List bytes, bool isFace) async {
+    try {
+      final codec = await ui.instantiateImageCodec(bytes, targetWidth: 80);
+      final frame = await codec.getNextFrame();
+      final data =
+          await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      if (data == null) return const [];
+      final px = data.buffer.asUint8List();
+      int n = 0, dark = 0, shiny = 0;
+      double sumR = 0, sumG = 0, sumB = 0, sumL = 0, sumL2 = 0;
+      for (int i = 0; i + 3 < px.length; i += 4) {
+        if (px[i + 3] < 20) continue; // skip transparent
+        final r = px[i].toDouble(), g = px[i + 1].toDouble(), b = px[i + 2].toDouble();
+        final l = 0.299 * r + 0.587 * g + 0.114 * b;
+        sumR += r; sumG += g; sumB += b; sumL += l; sumL2 += l * l;
+        if (l < 60) dark++;
+        if (l > 220) shiny++;
+        n++;
+      }
+      if (n == 0) return const [];
+      final avgR = sumR / n, avgG = sumG / n, avgB = sumB / n, avgL = sumL / n;
+      final variance = (sumL2 / n) - (avgL * avgL);
+      final std = variance > 0 ? sqrt(variance) : 0.0;
+      final redness = avgR - (avgG + avgB) / 2;
+      final out = <String>[];
+      if (redness > 16) out.add('Sensitivity / redness');
+      // Dark regions read as under-eye circles on a face, dark spots elsewhere.
+      if (dark / n > 0.28) out.add(isFace ? 'Dark circles' : 'Blemishes / dark spots');
+      if (shiny / n > 0.10) out.add('Oily skin');
+      if (std > 52) out.add('Pigmentation / uneven tone');
+      if (avgL < 95) out.add(isFace ? 'Dullness' : 'Tan / sunburn');
+      return out.where(kSkinConcerns.contains).take(3).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_facePhoto == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add a face photo first.')),
+      );
+      return;
+    }
+    if (!_consent) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please give consent above to continue.')),
+      );
+      return;
+    }
+    if (_concerns.isEmpty && _comment.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Select the skin concerns you notice.')),
+            content: Text('Select a concern or add a comment for the doctor.')),
       );
       return;
     }
     setState(() => _analyzing = true);
-    await Future<void>.delayed(const Duration(milliseconds: 1400));
+    await Future<void>.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
     final s = suggestForSkin(_concerns.toList());
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -69,6 +169,9 @@ class _SkinAnalysisScreenState extends ConsumerState<SkinAnalysisScreen> {
           id: 'skin_$now',
           kind: 'skin',
           conditions: _concerns.toList(),
+          aiConcerns: _aiConcerns.toList(),
+          comment: _comment.text.trim().isEmpty ? null : _comment.text.trim(),
+          bodyArea: _bodyArea,
           items: s.items,
           eat: s.eat,
           avoid: s.avoid,
@@ -78,11 +181,16 @@ class _SkinAnalysisScreenState extends ConsumerState<SkinAnalysisScreen> {
     setState(() {
       _analyzing = false;
       _concerns.clear();
+      _aiConcerns.clear();
+      _comment.clear();
+      _hasAnalyzed = false;
       _facePhoto = null;
+      _consent = false;
     });
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Sent to ${AppConstants.doctorName} for review.'),
+        content: Text('Report sent to ${AppConstants.doctorName} for review.'),
         backgroundColor: AppColors.success,
       ),
     );
@@ -113,7 +221,8 @@ class _SkinAnalysisScreenState extends ConsumerState<SkinAnalysisScreen> {
                         color: AppColors.taskYoga),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
-                        child: Text('Your face photo', style: text.titleMedium)),
+                        child: Text('Photo of the affected skin',
+                            style: text.titleMedium)),
                   ],
                 ),
                 if (_facePhoto != null) ...[
@@ -134,7 +243,7 @@ class _SkinAnalysisScreenState extends ConsumerState<SkinAnalysisScreen> {
                         onPressed:
                             _busy ? null : () => _capture(ImageSource.camera),
                         icon: const Icon(Icons.photo_camera_rounded),
-                        label: const Text('Selfie'),
+                        label: const Text('Camera'),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.md),
@@ -153,11 +262,129 @@ class _SkinAnalysisScreenState extends ConsumerState<SkinAnalysisScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
 
-          Text('What do you notice on your skin?',
-              style: text.titleMedium),
+          // Which body area — face or any skin (hand, arm, leg…).
+          Text('Where is the skin issue?', style: text.titleMedium),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            children: [
+              for (final a in _bodyAreas)
+                ChoiceChip(
+                  label: Text(a),
+                  selected: _bodyArea == a,
+                  selectedColor: AppColors.taskYoga,
+                  labelStyle: TextStyle(
+                    color: _bodyArea == a
+                        ? Colors.white
+                        : AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  onSelected: (_) => setState(() => _bodyArea = a),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          // Consent — required before processing the photo.
+          GlassCard(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm, vertical: 2),
+            child: CheckboxListTile(
+              value: _consent,
+              onChanged: (v) => setState(() => _consent = v ?? false),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              activeColor: AppColors.taskYoga,
+              title: Text(
+                'I consent to my skin photo being analysed for a skin-wellness '
+                'screening and shared with ${AppConstants.doctorName} for review.',
+                style: text.bodySmall,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          // Step 1 — AI screening of the photo.
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: (_facePhoto == null || _aiRunning || !_consent)
+                  ? null
+                  : _runAiAnalysis,
+              icon: _aiRunning
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.auto_awesome_rounded),
+              label: Text(_aiRunning
+                  ? 'Analysing your photo…'
+                  : (_hasAnalyzed
+                      ? 'Re-run AI analysis'
+                      : 'Analyse my skin with AI')),
+            ),
+          ),
+          if (_hasAnalyzed) ...[
+            const SizedBox(height: AppSpacing.md),
+            GlassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.auto_awesome_rounded,
+                          size: 18, color: AppColors.taskYoga),
+                      const SizedBox(width: 6),
+                      Text('AI screening result', style: text.titleSmall),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  if (_aiConcerns.isEmpty)
+                    Text(
+                        'No obvious concerns detected. Add what you notice below.',
+                        style: text.bodySmall
+                            ?.copyWith(color: AppColors.textSecondary))
+                  else ...[
+                    Text('Flagged for review (pre-selected below):',
+                        style: text.bodySmall
+                            ?.copyWith(color: AppColors.textSecondary)),
+                    const SizedBox(height: AppSpacing.xs),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        for (final c in _aiConcerns)
+                          Chip(
+                            avatar: const Icon(Icons.auto_awesome_rounded,
+                                size: 14, color: Colors.white),
+                            label: Text(c,
+                                style:
+                                    const TextStyle(color: Colors.white)),
+                            backgroundColor: AppColors.taskYoga,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'A wellness screen from photo colour & tone — not a medical '
+                    'diagnosis. Confirm or adjust below.',
+                    style: text.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.lg),
+
+          // Step 2 — user confirms / adds concerns.
+          Text('What do you notice on your skin?', style: text.titleMedium),
           const SizedBox(height: AppSpacing.xs),
-          Text('Select all that apply — the assistant builds your '
-              'cleanse–tone–moisturize routine from them.',
+          Text('Add or remove any — AI-flagged ones (✦) are pre-selected.',
               style:
                   text.bodySmall?.copyWith(color: AppColors.textSecondary)),
           const SizedBox(height: AppSpacing.md),
@@ -167,6 +394,13 @@ class _SkinAnalysisScreenState extends ConsumerState<SkinAnalysisScreen> {
             children: [
               for (final c in kSkinConcerns)
                 FilterChip(
+                  avatar: _aiConcerns.contains(c)
+                      ? Icon(Icons.auto_awesome_rounded,
+                          size: 14,
+                          color: _concerns.contains(c)
+                              ? Colors.white
+                              : AppColors.taskYoga)
+                      : null,
                   label: Text(c),
                   selected: _concerns.contains(c),
                   selectedColor: AppColors.taskYoga,
@@ -182,27 +416,44 @@ class _SkinAnalysisScreenState extends ConsumerState<SkinAnalysisScreen> {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
+
+          // Step 3 — free-text comment for the doctor.
+          Text('Anything else for the doctor? (optional)',
+              style: text.titleMedium),
+          const SizedBox(height: AppSpacing.sm),
+          TextField(
+            controller: _comment,
+            maxLines: 3,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              hintText: 'Describe your concern in your own words…',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: _analyzing ? null : _analyze,
+              onPressed: (_analyzing || !_consent) ? null : _submit,
               icon: _analyzing
                   ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.auto_awesome_rounded),
+                  : const Icon(Icons.send_rounded),
               label: Text(_analyzing
-                  ? 'Analyzing your skin…'
-                  : 'Analyze & get my routine'),
+                  ? 'Sending report…'
+                  : (_consent
+                      ? 'Send report to doctor'
+                      : 'Give consent above to continue')),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'This is a guided skin check — not a medical diagnosis. Your '
-            'routine is reviewed and approved by ${AppConstants.doctorName} '
-            'before you follow it.',
+            'The report (your photo, concerns & comment) and suggested products '
+            'go to ${AppConstants.doctorName}. You\'ll see the routine only '
+            'after the doctor reviews and approves it.',
             style: text.bodySmall?.copyWith(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
@@ -238,7 +489,8 @@ class _SkinCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                    child: Text(request.conditions.join(', '),
+                    child: Text(
+                        '${request.bodyArea != null && request.bodyArea!.isNotEmpty ? '${request.bodyArea} · ' : ''}${request.conditions.join(', ')}',
                         style: text.titleSmall)),
                 Container(
                   padding:

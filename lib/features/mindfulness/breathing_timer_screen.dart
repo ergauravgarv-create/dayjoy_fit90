@@ -114,6 +114,10 @@ class _BreathingTimerScreenState extends State<BreathingTimerScreen>
   void _tick() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
       if (_paused) return;
       if (_secondsLeft <= 1) {
         t.cancel();

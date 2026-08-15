@@ -60,27 +60,48 @@ class _SupplementReviewScreenState
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       backgroundColor: AppColors.surfaceOf(context),
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final p in options)
-              ListTile(
-                leading: const Icon(Icons.medication_liquid_rounded,
-                    color: AppColors.primary),
-                title: Text(p),
-                subtitle: Text(infoFor(p)?.tagline ?? dosageFor(p)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  setState(() {
-                    _items.add(
-                        SupplementItem(product: p, dosage: dosageFor(p)));
-                    _dosage.add(TextEditingController(text: dosageFor(p)));
-                  });
-                },
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.7),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
+                child: Text('Add a supplement',
+                    style: Theme.of(ctx).textTheme.titleMedium),
               ),
-          ],
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  children: [
+                    for (final p in options)
+                      ListTile(
+                        leading: const Icon(Icons.medication_liquid_rounded,
+                            color: AppColors.primary),
+                        title: Text(p),
+                        subtitle: Text(infoFor(p)?.tagline ?? dosageFor(p)),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          setState(() {
+                            _items.add(SupplementItem(
+                                product: p, dosage: dosageFor(p)));
+                            _dosage.add(
+                                TextEditingController(text: dosageFor(p)));
+                          });
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -95,14 +116,17 @@ class _SupplementReviewScreenState
       isScrollControlled: true,
       backgroundColor: AppColors.surfaceOf(context),
       builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(product, style: Theme.of(ctx).textTheme.titleLarge),
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.8),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(product, style: Theme.of(ctx).textTheme.titleLarge),
               Text(info.tagline,
                   style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSecondary,
@@ -165,6 +189,7 @@ class _SupplementReviewScreenState
               ),
             ],
           ),
+          ),
         ),
       ),
     );
@@ -205,6 +230,9 @@ class _SupplementReviewScreenState
       id: widget.request.id,
       kind: widget.request.kind,
       conditions: widget.request.conditions,
+      aiConcerns: widget.request.aiConcerns,
+      comment: widget.request.comment,
+      bodyArea: widget.request.bodyArea,
       items: _items,
       eat: _eat,
       avoid: _avoid,
@@ -258,7 +286,35 @@ class _SupplementReviewScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Reported issues', style: text.titleSmall),
+                Row(
+                  children: [
+                    Text('Reported issues', style: text.titleSmall),
+                    if (req.bodyArea != null && req.bodyArea!.isNotEmpty) ...[
+                      const Spacer(),
+                      Chip(
+                        avatar: const Icon(Icons.accessibility_new_rounded,
+                            size: 14, color: AppColors.primary),
+                        label: Text(req.bodyArea!),
+                        visualDensity: VisualDensity.compact,
+                        backgroundColor: AppColors.primary.withOpacity(0.10),
+                      ),
+                    ],
+                  ],
+                ),
+                if (req.aiConcerns.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.auto_awesome_rounded,
+                            size: 13, color: AppColors.taskYoga),
+                        const SizedBox(width: 4),
+                        Text('✦ = flagged by AI screening',
+                            style: text.bodySmall
+                                ?.copyWith(color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: AppSpacing.xs),
                 Wrap(
                   spacing: AppSpacing.sm,
@@ -266,12 +322,29 @@ class _SupplementReviewScreenState
                   children: [
                     for (final c in req.conditions)
                       Chip(
+                        avatar: req.aiConcerns.contains(c)
+                            ? const Icon(Icons.auto_awesome_rounded,
+                                size: 14, color: AppColors.taskYoga)
+                            : null,
                         label: Text(c),
                         visualDensity: VisualDensity.compact,
                         backgroundColor: AppColors.info.withOpacity(0.12),
                       ),
                   ],
                 ),
+                if (req.comment != null && req.comment!.trim().isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceMuted,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Text('Patient note: ${req.comment}',
+                        style: text.bodySmall),
+                  ),
+                ],
                 if (req.reportPhoto != null) ...[
                   const SizedBox(height: AppSpacing.sm),
                   GestureDetector(

@@ -873,6 +873,11 @@ const List<String> kSkinConcerns = [
   'Pigmentation / uneven tone',
   'Sensitivity / redness',
   'Body dryness',
+  'Rash / irritation',
+  'Itching / allergy',
+  'Tan / sunburn',
+  'Body acne',
+  'Rough / cracked skin',
 ];
 
 const List<String> kSkincareEat = [
@@ -958,6 +963,36 @@ const Map<String, List<String>> kSkinRules = {
     'Aloe Vera Gel',
     'Omega 3-6-9 Softgel Capsules',
     'Sea Buckthorn Juice',
+  ],
+  'Rash / irritation': [
+    'Aloe Vera Gel',
+    'Anti-Pollution Aloe Vera Face Wash',
+    'Neem & Aloe Vera Soap',
+    'Daily Care Cream',
+  ],
+  'Itching / allergy': [
+    'Aloe Vera Gel',
+    'Neem & Aloe Vera Soap',
+    'Multivitamin Tablets',
+    'Golden Elixir',
+  ],
+  'Tan / sunburn': [
+    'Sunscreen SPF 50+',
+    'Aloe Vera Gel',
+    'Haldi Chandan Face Wash',
+    'Hydra Aloe Vera Body Lotion',
+  ],
+  'Body acne': [
+    'Neem & Aloe Vera Soap',
+    'AcneX Anti-Acne Foaming Cleanser',
+    'Aloe Vera Gel',
+    'Hydra Max Gel Moisturizer',
+  ],
+  'Rough / cracked skin': [
+    'Hydra Aloe Vera Body Lotion',
+    'Aloe Vera Gel',
+    'Daily Care Cream',
+    'Omega 3-6-9 Softgel Capsules',
   ],
 };
 
