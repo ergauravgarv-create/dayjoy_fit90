@@ -584,48 +584,51 @@ class _RequestCard extends StatelessWidget {
                 style:
                     text.bodySmall?.copyWith(color: AppColors.textSecondary)),
             const SizedBox(height: AppSpacing.sm),
+            // Recommendations stay hidden until the doctor reviews & approves —
+            // the customer must NOT see suggested products before approval.
             if (!approved)
-              Text('Suggested (pending doctor approval):',
-                  style: text.bodySmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            for (final it in request.items)
-              InkWell(
-                onTap: infoFor(it.product) != null
-                    ? () => showProductInfoSheet(context, it.product)
-                    : null,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.medication_liquid_rounded,
-                          size: 16, color: statusColor),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: RichText(
-                          text: TextSpan(
-                            style: text.bodySmall
-                                ?.copyWith(color: AppColors.textSecondary),
-                            children: [
-                              TextSpan(
-                                  text: it.product,
-                                  style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w700)),
-                              TextSpan(text: '  ·  ${it.dosage}'),
-                            ],
+              _PendingReviewPanel(text: text)
+            else ...[
+              Text('Your plan (tap a product for details):',
+                  style:
+                      text.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              for (final it in request.items)
+                InkWell(
+                  onTap: infoFor(it.product) != null
+                      ? () => showProductInfoSheet(context, it.product)
+                      : null,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.medication_liquid_rounded,
+                            size: 16, color: statusColor),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: RichText(
+                            text: TextSpan(
+                              style: text.bodySmall
+                                  ?.copyWith(color: AppColors.textSecondary),
+                              children: [
+                                TextSpan(
+                                    text: it.product,
+                                    style: const TextStyle(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w700)),
+                                TextSpan(text: '  ·  ${it.dosage}'),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      if (infoFor(it.product) != null)
-                        const Icon(Icons.info_outline_rounded,
-                            size: 15, color: AppColors.info),
-                    ],
+                        if (infoFor(it.product) != null)
+                          const Icon(Icons.info_outline_rounded,
+                              size: 15, color: AppColors.info),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            if (approved) ...[
               if (request.eat.isNotEmpty)
                 _FoodLine('Eat', request.eat, AppColors.success, text),
               if (request.avoid.isNotEmpty)
@@ -650,6 +653,40 @@ class _RequestCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Shown in place of the recommendations while a request is pending — the
+/// customer only sees products after the doctor approves.
+class _PendingReviewPanel extends StatelessWidget {
+  const _PendingReviewPanel({required this.text});
+  final TextTheme text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.orange.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.hourglass_top_rounded,
+              size: 18, color: AppColors.orange),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              '${AppConstants.doctorName} is reviewing your report. Your '
+              'recommended products & plan will appear here once approved.',
+              style: text.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ),
+          ),
+        ],
       ),
     );
   }

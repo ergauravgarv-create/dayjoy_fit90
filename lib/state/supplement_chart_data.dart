@@ -878,6 +878,12 @@ const List<String> kSkinConcerns = [
   'Tan / sunburn',
   'Body acne',
   'Rough / cracked skin',
+  // Nail concerns (fingernails / toenails)
+  'Brittle / breaking nails',
+  'Discoloured nails',
+  'Nail fungus / infection',
+  // Skin-disease patterns
+  'Psoriasis / scaly patches',
 ];
 
 const List<String> kSkincareEat = [
@@ -992,6 +998,34 @@ const Map<String, List<String>> kSkinRules = {
     'Hydra Aloe Vera Body Lotion',
     'Aloe Vera Gel',
     'Daily Care Cream',
+    'Omega 3-6-9 Softgel Capsules',
+  ],
+  // Brittle / breaking nails usually signal low hydration + biotin/protein.
+  'Brittle / breaking nails': [
+    'BR Rich Oil',
+    'Multivitamin Tablets',
+    'Calcium Tablet',
+    'Hydra Aloe Vera Body Lotion',
+    'Omega 3-6-9 Softgel Capsules',
+  ],
+  'Discoloured nails': [
+    'Multivitamin Tablets',
+    'Golden Elixir',
+    'Sea Buckthorn Juice',
+    'BR Rich Oil',
+  ],
+  'Nail fungus / infection': [
+    'Neem & Aloe Vera Soap',
+    'Aloe Vera Gel',
+    'Golden Elixir',
+    'Multivitamin Tablets',
+  ],
+  // Redness with scaly patches → psoriasis / chronic allergy support.
+  'Psoriasis / scaly patches': [
+    'Aloe Vera Gel',
+    'Hydra Aloe Vera Body Lotion',
+    'Sea Buckthorn Juice',
+    'Golden Elixir',
     'Omega 3-6-9 Softgel Capsules',
   ],
 };

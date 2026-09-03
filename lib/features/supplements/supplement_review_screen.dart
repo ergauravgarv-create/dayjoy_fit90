@@ -223,6 +223,12 @@ class _SupplementReviewScreenState
   }
 
   void _approve() {
+    // Capture messenger & navigator BEFORE popping — after Navigator.pop the
+    // element is deactivated, and ScaffoldMessenger.of(context) would throw
+    // ("Looking up a deactivated widget's ancestor is unsafe"), surfacing as an
+    // un-closeable error overlay.
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     for (int i = 0; i < _items.length; i++) {
       _items[i].dosage = _dosage[i].text.trim();
     }
@@ -243,13 +249,13 @@ class _SupplementReviewScreenState
       approvedAt: DateTime.now().millisecondsSinceEpoch,
     );
     ref.read(supplementRequestsProvider.notifier).replace(updated);
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       const SnackBar(
         content: Text('✅ Supplement consultation approved'),
         backgroundColor: AppColors.success,
       ),
     );
+    navigator.pop();
   }
 
   void _viewReport(String data) {

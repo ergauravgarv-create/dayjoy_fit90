@@ -20,6 +20,7 @@ const List<String> _bodyAreas = [
   'Face',
   'Neck',
   'Hands',
+  'Nails',
   'Arms',
   'Legs',
   'Feet',
@@ -74,7 +75,100 @@ class _SkinAnalysisScreenState extends ConsumerState<SkinAnalysisScreen> {
     }
   }
 
-  /// Runs a lightweight on-device screening of the face photo and pre-selects
+  /// Step 1 — confirm the body part BEFORE analysing. The app tells the user
+  /// which body part it will analyse (e.g. "toenail") and asks them to confirm
+  /// or correct it; analysis only runs on a confirmed part.
+  Future<void> _confirmAndAnalyze() async {
+    if (_facePhoto == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add a skin photo first.')),
+      );
+      return;
+    }
+    if (!_consent) return;
+
+    final photo = base64Decode(_facePhoto!);
+    String area = _bodyArea; // the part the app will analyse
+    final TextTheme text = Theme.of(context).textTheme;
+
+    final confirmed = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Confirm the body part'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  child: Image.memory(photo,
+                      height: 120, width: double.infinity, fit: BoxFit.cover),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                RichText(
+                  text: TextSpan(
+                    style: text.bodyMedium,
+                    children: [
+                      const TextSpan(
+                          text: 'We\'ll analyse this as a photo of your '),
+                      TextSpan(
+                          text: area,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.taskYoga)),
+                      const TextSpan(text: '. Is that correct?'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text('Tap the correct part if this is wrong:',
+                    style: text.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary)),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    for (final a in _bodyAreas)
+                      ChoiceChip(
+                        label: Text(a),
+                        selected: area == a,
+                        selectedColor: AppColors.taskYoga,
+                        labelStyle: TextStyle(
+                          color: area == a
+                              ? Colors.white
+                              : AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        onSelected: (_) => setLocal(() => area = a),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(ctx, area),
+              icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+              label: const Text('Yes, analyse'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == null || !mounted) return;
+    setState(() => _bodyArea = confirmed);
+    await _runAiAnalysis();
+  }
+
+  /// Runs a lightweight on-device screening of the photo and pre-selects
   /// the concerns it flags. This is a heuristic wellness screen (colour/tone
   /// signals), NOT a medical diagnosis — a doctor reviews everything.
   Future<void> _runAiAnalysis() async {
@@ -86,8 +180,8 @@ class _SkinAnalysisScreenState extends ConsumerState<SkinAnalysisScreen> {
     }
     if (!_consent) return;
     setState(() => _aiRunning = true);
-    final detected = await _detectFromPhoto(
-        base64Decode(_facePhoto!), _bodyArea == 'Face');
+    final detected =
+        await _detectFromPhoto(base64Decode(_facePhoto!), _bodyArea);
     // A brief pause so it reads as "analysing".
     await Future<void>.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
@@ -101,9 +195,10 @@ class _SkinAnalysisScreenState extends ConsumerState<SkinAnalysisScreen> {
     });
   }
 
-  /// Very light colour/tone heuristic → a few skin concerns to review. Returns
-  /// concern labels from [kSkinConcerns]. Never throws.
-  Future<List<String>> _detectFromPhoto(Uint8List bytes, bool isFace) async {
+  /// Very light colour/tone heuristic → a few concerns to review, tuned to the
+  /// body area (face / nails / other skin). Returns concern labels from
+  /// [kSkinConcerns]. Never throws — this is a wellness screen, not a diagnosis.
+  Future<List<String>> _detectFromPhoto(Uint8List bytes, String area) async {
     try {
       final codec = await ui.instantiateImageCodec(bytes, targetWidth: 80);
       final frame = await codec.getNextFrame();
@@ -123,17 +218,37 @@ class _SkinAnalysisScreenState extends ConsumerState<SkinAnalysisScreen> {
         n++;
       }
       if (n == 0) return const [];
-      final avgR = sumR / n, avgG = sumG / n, avgB = sumB / n, avgL = sumL / n;
+      final avgL = sumL / n;
       final variance = (sumL2 / n) - (avgL * avgL);
       final std = variance > 0 ? sqrt(variance) : 0.0;
-      final redness = avgR - (avgG + avgB) / 2;
+      final redness = (sumR / n) - ((sumG / n) + (sumB / n)) / 2;
+      final darkFrac = dark / n, shinyFrac = shiny / n;
       final out = <String>[];
-      if (redness > 16) out.add('Sensitivity / redness');
-      // Dark regions read as under-eye circles on a face, dark spots elsewhere.
-      if (dark / n > 0.28) out.add(isFace ? 'Dark circles' : 'Blemishes / dark spots');
-      if (shiny / n > 0.10) out.add('Oily skin');
-      if (std > 52) out.add('Pigmentation / uneven tone');
-      if (avgL < 95) out.add(isFace ? 'Dullness' : 'Tan / sunburn');
+
+      if (area == 'Nails') {
+        // Ridged / uneven texture reads as brittleness; redness → infection;
+        // darkening → discolouration.
+        if (std > 42) out.add('Brittle / breaking nails');
+        if (redness > 18) out.add('Nail fungus / infection');
+        if (avgL < 110 || darkFrac > 0.30) out.add('Discoloured nails');
+        if (out.isEmpty) out.add('Brittle / breaking nails');
+      } else if (area == 'Face') {
+        if (redness > 16) out.add('Sensitivity / redness');
+        if (darkFrac > 0.28) out.add('Dark circles');
+        if (shinyFrac > 0.10) out.add('Oily skin');
+        if (std > 52) out.add('Pigmentation / uneven tone');
+        if (avgL < 95) out.add('Dullness');
+      } else {
+        // Any other skin (hands, arms, legs, back…).
+        if (redness > 20 && std > 44) {
+          out.add('Psoriasis / scaly patches');
+        } else if (redness > 15) {
+          out.add('Sensitivity / redness');
+        }
+        if (darkFrac > 0.28) out.add('Blemishes / dark spots');
+        if (std > 55) out.add('Rough / cracked skin');
+        if (avgL < 95) out.add('Tan / sunburn');
+      }
       return out.where(kSkinConcerns.contains).take(3).toList();
     } catch (_) {
       return const [];
@@ -312,7 +427,7 @@ class _SkinAnalysisScreenState extends ConsumerState<SkinAnalysisScreen> {
             child: FilledButton.tonalIcon(
               onPressed: (_facePhoto == null || _aiRunning || !_consent)
                   ? null
-                  : _runAiAnalysis,
+                  : _confirmAndAnalyze,
               icon: _aiRunning
                   ? const SizedBox(
                       width: 18,
@@ -514,53 +629,80 @@ class _SkinCard extends StatelessWidget {
                 style:
                     text.bodySmall?.copyWith(color: AppColors.textSecondary)),
             const SizedBox(height: AppSpacing.sm),
-            Text(
-                approved
-                    ? 'Your routine (tap a product for details):'
-                    : 'Suggested routine (pending doctor approval):',
-                style: text.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            for (final it in request.items)
-              InkWell(
-                onTap: infoFor(it.product) != null
-                    ? () => showProductInfoSheet(context, it.product)
-                    : null,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.spa_rounded, size: 16, color: statusColor),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: RichText(
-                          text: TextSpan(
-                            style: text.bodySmall
-                                ?.copyWith(color: AppColors.textSecondary),
-                            children: [
-                              TextSpan(
-                                  text: it.product,
-                                  style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w700)),
-                              TextSpan(text: '  ·  ${it.dosage}'),
-                            ],
+            // The routine stays hidden until the doctor reviews & approves —
+            // the customer must NOT see suggested products before approval.
+            if (!approved)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.orange.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.hourglass_top_rounded,
+                        size: 18, color: AppColors.orange),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        '${AppConstants.doctorName} is reviewing your photo. '
+                        'Your recommended routine will appear here once approved.',
+                        style: text.bodySmall
+                            ?.copyWith(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              Text('Your routine (tap a product for details):',
+                  style:
+                      text.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              for (final it in request.items)
+                InkWell(
+                  onTap: infoFor(it.product) != null
+                      ? () => showProductInfoSheet(context, it.product)
+                      : null,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.spa_rounded, size: 16, color: statusColor),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: RichText(
+                            text: TextSpan(
+                              style: text.bodySmall
+                                  ?.copyWith(color: AppColors.textSecondary),
+                              children: [
+                                TextSpan(
+                                    text: it.product,
+                                    style: const TextStyle(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w700)),
+                                TextSpan(text: '  ·  ${it.dosage}'),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      if (infoFor(it.product) != null)
-                        const Icon(Icons.info_outline_rounded,
-                            size: 15, color: AppColors.info),
-                    ],
+                        if (infoFor(it.product) != null)
+                          const Icon(Icons.info_outline_rounded,
+                              size: 15, color: AppColors.info),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            if (approved && request.doctorNote.trim().isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Text('Doctor\'s note: ${request.doctorNote}',
-                  style: text.bodySmall?.copyWith(
-                      fontStyle: FontStyle.italic,
-                      color: AppColors.textSecondary)),
+              if (request.doctorNote.trim().isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text('Doctor\'s note: ${request.doctorNote}',
+                    style: text.bodySmall?.copyWith(
+                        fontStyle: FontStyle.italic,
+                        color: AppColors.textSecondary)),
+              ],
             ],
           ],
         ),
