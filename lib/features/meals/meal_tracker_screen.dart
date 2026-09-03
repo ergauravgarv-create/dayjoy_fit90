@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/models/participant.dart';
+import '../../services/food_recognition/food_recognition_service.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../state/meal_photos_provider.dart';
 import '../../state/meal_provider.dart';
@@ -369,6 +371,15 @@ class _MealSection extends ConsumerWidget {
                 ),
               ),
             ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () =>
+                    _identifyFromPhoto(context, ref, type, base64Decode(photo)),
+                icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                label: const Text('Identify food from photo'),
+              ),
+            ),
           ],
           if (logs.isNotEmpty) const SizedBox(height: AppSpacing.sm),
           for (final log in logs)
@@ -445,12 +456,132 @@ class _MealSection extends ConsumerWidget {
         ref
             .read(mealPhotosProvider.notifier)
             .setPhoto(type, base64Encode(bytes));
+        // Immediately offer to identify the dish and auto-fill its nutrition.
+        if (context.mounted) {
+          await _identifyFromPhoto(context, ref, type, bytes);
+        }
       }
     } catch (_) {
       messenger.showSnackBar(
         const SnackBar(content: Text('Could not add the photo on this device.')),
       );
     }
+  }
+
+  /// Run the food recogniser on a meal photo, then show a confirm sheet so the
+  /// user picks the dish; its nutrition is auto-filled from the food database.
+  Future<void> _identifyFromPhoto(
+      BuildContext context, WidgetRef ref, MealType type, Uint8List bytes) async {
+    final recognizer = ref.read(foodRecognitionServiceProvider);
+    final guesses = await recognizer.recognize(bytes, type);
+    if (!context.mounted) return;
+    _showFoodConfirm(context, ref, type, bytes, guesses);
+  }
+
+  void _showFoodConfirm(BuildContext context, WidgetRef ref, MealType type,
+      Uint8List bytes, List<FoodGuess> guesses) {
+    final bool detected = guesses.any((g) => g.isDetected);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: AppColors.surfaceOf(context),
+      builder: (ctx) {
+        final TextTheme text = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints:
+                BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        child: Image.memory(bytes,
+                            height: 48, width: 48, fit: BoxFit.cover),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                                detected
+                                    ? 'Is this your ${type.label.toLowerCase()}?'
+                                    : 'What\'s on your plate?',
+                                style: text.titleMedium),
+                            Text(
+                                'Tap the dish to log it — nutrition fills in automatically.',
+                                style: text.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    children: [
+                      for (final g in guesses)
+                        ListTile(
+                          leading: Icon(g.food.isVeg
+                              ? Icons.eco_rounded
+                              : Icons.egg_alt_rounded,
+                              color: g.food.isVeg
+                                  ? AppColors.success
+                                  : AppColors.orange),
+                          title: Text(g.food.name),
+                          subtitle: Text(
+                              '${g.food.serving} · ${g.food.kcal} kcal · '
+                              'P ${g.food.protein.round()} C ${g.food.carbs.round()} '
+                              'F ${g.food.fat.round()} Fib ${g.food.fibre.round()} g',
+                              style: text.bodySmall),
+                          trailing: const Icon(Icons.add_circle_outline_rounded,
+                              color: AppColors.primary),
+                          onTap: () {
+                            ref
+                                .read(mealLogProvider.notifier)
+                                .add(type, g.food, 1);
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Added ${g.food.name} to ${type.label.toLowerCase()}'),
+                                backgroundColor: AppColors.success,
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  child: TextButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _openFoodSearch(context, ref, type);
+                    },
+                    icon: const Icon(Icons.search_rounded, size: 20),
+                    label: const Text('Not listed? Search all foods'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _viewPhoto(BuildContext context, String data) {
@@ -480,6 +611,15 @@ class _MealSection extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListTile(
+              leading: const Icon(Icons.auto_awesome_rounded,
+                  color: AppColors.primary),
+              title: const Text('Identify food from photo'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _identifyFromPhoto(context, ref, type, base64Decode(data));
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.fullscreen_rounded),
               title: const Text('View photo'),
