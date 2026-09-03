@@ -23,12 +23,23 @@ export const awardDailyPoints = onDocumentWritten(
 
     const tasks = (data.tasks ?? {}) as Record<string, { completed?: boolean }>;
     const completedCount = TASK_KEYS.filter((k) => tasks[k]?.completed === true).length;
-    const newPoints = completedCount * CONFIG.pointsPerTask;
+
+    // Water is a SEPARATE daily task (not in TASK_KEYS), matching the client:
+    // done when the day doc flags it or enough glasses were logged.
+    const glasses =
+      (data.waterGlasses as number | undefined) ??
+      ((data.water as { glasses?: number } | undefined)?.glasses) ??
+      0;
+    const waterCompleted = data.waterCompleted === true || glasses >= CONFIG.waterTaskGlasses;
+
+    const newPoints =
+      completedCount * CONFIG.pointsPerTask + (waterCompleted ? CONFIG.waterTaskPoints : 0);
     const prevPoints = (data.pointsAwarded as number | undefined) ?? 0;
 
     if (newPoints === prevPoints) return; // converged — nothing to do
 
-    const nowAllComplete = completedCount === CONFIG.tasksPerDay;
+    // A full day = all 5 activity tasks AND the water task.
+    const nowAllComplete = completedCount === CONFIG.tasksPerDay && waterCompleted;
     const wasAllComplete = prevPoints === CONFIG.dailyPointsTotal;
 
     let newStreak = 0;
