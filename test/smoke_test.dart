@@ -18,7 +18,12 @@ void main() {
         c = c.toggle(t, true);
       }
       expect(c.allComplete, isTrue);
-      expect(c.pointsEarned, AppConstants.dailyPointsTotal);
+      // The 5 checklist tasks award pointsPerTask each; the separate daily
+      // water task contributes the remaining points to reach the daily total.
+      expect(c.pointsEarned,
+          DailyTaskType.values.length * AppConstants.pointsPerTask);
+      expect(c.pointsEarned + AppConstants.waterTaskPoints,
+          AppConstants.dailyPointsTotal);
       expect(c.completionPercent, 1.0);
     });
   });

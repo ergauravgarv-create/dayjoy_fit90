@@ -44,7 +44,7 @@ class OfflineUploadQueue {
   final _controller = StreamController<List<PhotoSubmission>>.broadcast();
 
   bool _online = true;
-  bool _processing = false;
+  Future<void>? _current;
 
   Stream<List<PhotoSubmission>> get changes => _controller.stream;
   List<PhotoSubmission> get pending =>
@@ -72,54 +72,55 @@ class OfflineUploadQueue {
   }
 
   /// Try to upload everything not yet uploaded, oldest first, with a bounded
-  /// attempt count and linear backoff.
-  Future<void> processPending() async {
-    if (_processing || !_online) return;
-    _processing = true;
-    try {
-      for (int i = 0; i < _queue.length; i++) {
-        final PhotoSubmission s = _queue[i];
-        if (s.uploadStatus == UploadStatus.uploaded) continue;
-        if (s.attempts >= maxAttempts) continue;
+  /// attempt count and linear backoff. Concurrent callers share the single
+  /// in-flight run, so awaiting this always waits for processing to finish —
+  /// including the run [setOnline]`(true)` kicks off.
+  Future<void> processPending() {
+    if (!_online) return Future<void>.value();
+    return _current ??= _process().whenComplete(() => _current = null);
+  }
 
-        final Uint8List? bytes = await _byteStore.get(s.id);
-        if (bytes == null) {
-          _queue[i] = s.copyWith(
-            uploadStatus: UploadStatus.failed,
-            error: 'Bytes missing from store',
-          );
-          continue;
-        }
+  Future<void> _process() async {
+    for (int i = 0; i < _queue.length; i++) {
+      final PhotoSubmission s = _queue[i];
+      if (s.uploadStatus == UploadStatus.uploaded) continue;
+      if (s.attempts >= maxAttempts) continue;
 
-        _queue[i] = s.copyWith(uploadStatus: UploadStatus.uploading);
-        _emit();
-        try {
-          final String url = await _uploader.upload(
-            bytes,
-            storageKey: '${s.taskKey}/${s.id}',
-            mimeType: s.mimeType,
-          );
-          _queue[i] = _queue[i].copyWith(
-            uploadStatus: UploadStatus.uploaded,
-            remoteUrl: url,
-            error: null,
-          );
-          await _byteStore.remove(s.id);
-        } catch (e) {
-          final int attempts = s.attempts + 1;
-          _queue[i] = _queue[i].copyWith(
-            uploadStatus: UploadStatus.failed,
-            attempts: attempts,
-            error: e.toString(),
-          );
-          if (attempts < maxAttempts) {
-            await Future<void>.delayed(Duration(milliseconds: 150 * attempts));
-          }
-        }
-        _emit();
+      final Uint8List? bytes = await _byteStore.get(s.id);
+      if (bytes == null) {
+        _queue[i] = s.copyWith(
+          uploadStatus: UploadStatus.failed,
+          error: 'Bytes missing from store',
+        );
+        continue;
       }
-    } finally {
-      _processing = false;
+
+      _queue[i] = s.copyWith(uploadStatus: UploadStatus.uploading);
+      _emit();
+      try {
+        final String url = await _uploader.upload(
+          bytes,
+          storageKey: '${s.taskKey}/${s.id}',
+          mimeType: s.mimeType,
+        );
+        _queue[i] = _queue[i].copyWith(
+          uploadStatus: UploadStatus.uploaded,
+          remoteUrl: url,
+          error: null,
+        );
+        await _byteStore.remove(s.id);
+      } catch (e) {
+        final int attempts = s.attempts + 1;
+        _queue[i] = _queue[i].copyWith(
+          uploadStatus: UploadStatus.failed,
+          attempts: attempts,
+          error: e.toString(),
+        );
+        if (attempts < maxAttempts) {
+          await Future<void>.delayed(Duration(milliseconds: 150 * attempts));
+        }
+      }
+      _emit();
     }
   }
 
