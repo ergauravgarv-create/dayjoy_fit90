@@ -96,4 +96,43 @@ class FirebaseChecklistRepository implements ChecklistRepository {
       }
     });
   }
+
+  @override
+  Future<void> setWater(
+    String uid,
+    int day, {
+    required int glasses,
+    required bool completed,
+  }) async {
+    final dateId = _dateId(DateTime.now());
+    final ref = _days(uid).doc(dateId);
+
+    // Same create/merge pattern as setTask: the create path seeds the required
+    // fields (pointsAwarded=0) so the security rule passes and the function can
+    // score; updates never touch server-set points.
+    await _fs.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      if (!snap.exists) {
+        tx.set(ref, {
+          'participantId': uid,
+          'challengeDay': day,
+          'activityDate': dateId,
+          'pointsAwarded': 0,
+          'tasks': <String, dynamic>{},
+          'waterGlasses': glasses,
+          'waterCompleted': completed,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        tx.set(
+          ref,
+          {
+            'waterGlasses': glasses,
+            'waterCompleted': completed,
+          },
+          SetOptions(merge: true),
+        );
+      }
+    });
+  }
 }

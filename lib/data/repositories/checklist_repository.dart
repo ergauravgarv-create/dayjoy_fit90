@@ -22,4 +22,14 @@ abstract interface class ChecklistRepository {
     int? verifiedSteps,
     String? verificationMethod,
   });
+
+  /// Persist the daily water task on the same day doc: [glasses] logged and
+  /// whether the water goal was met ([completed]). The `awardDailyPoints`
+  /// function folds this into the daily score alongside the 5 activity tasks.
+  Future<void> setWater(
+    String uid,
+    int day, {
+    required int glasses,
+    required bool completed,
+  });
 }

@@ -38,4 +38,15 @@ class MockChecklistRepository implements ChecklistRepository {
     _store[day] = updated;
     _controller(day).add(updated);
   }
+
+  @override
+  Future<void> setWater(
+    String uid,
+    int day, {
+    required int glasses,
+    required bool completed,
+  }) async {
+    // Mock mode tracks water locally (shared_preferences via waterProvider),
+    // so there's nothing to persist to a day doc here.
+  }
 }

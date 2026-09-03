@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/constants/app_constants.dart';
 import 'prefs_provider.dart';
+import 'providers.dart';
+import 'repository_providers.dart';
 
 /// Millilitres in one "glass" — the unit the daily task & challenges count in.
 const int kGlassMl = 250;
@@ -45,14 +50,31 @@ class WaterController extends Notifier<int> {
 
   void _persist() => ref.read(sharedPreferencesProvider).setInt(_key, state);
 
+  /// Mirror the daily water task onto today's day doc so the server can fold it
+  /// into the daily score. Fire-and-forget; no-op in mock mode / when signed out.
+  void _syncDayDoc() {
+    final uid = ref.read(authUidProvider);
+    if (uid == null) return;
+    final glasses = state ~/ kGlassMl;
+    final day = ref.read(participantProvider)?.currentDay ?? 1;
+    unawaited(ref.read(checklistRepositoryProvider).setWater(
+          uid,
+          day,
+          glasses: glasses,
+          completed: glasses >= AppConstants.waterTaskGlasses,
+        ));
+  }
+
   void addMl(int ml) {
     state = (state + ml).clamp(0, 10000).toInt();
     _persist();
+    _syncDayDoc();
   }
 
   void removeMl(int ml) {
     state = (state - ml).clamp(0, 10000).toInt();
     _persist();
+    _syncDayDoc();
   }
 
   void addGlass() => addMl(kGlassMl);
@@ -61,6 +83,7 @@ class WaterController extends Notifier<int> {
   void reset() {
     state = 0;
     _persist();
+    _syncDayDoc();
   }
 }
 
