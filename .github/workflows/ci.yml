@@ -34,7 +34,9 @@ jobs:
         run: flutter gen-l10n
 
       - name: Analyze
-        run: flutter analyze
+        # Fail on warnings & errors, but not on style-only info lints
+        # (e.g. prefer_const_constructors) so cosmetic hints don't block CI.
+        run: flutter analyze --no-fatal-infos
 
       - name: Test
         run: flutter test --coverage

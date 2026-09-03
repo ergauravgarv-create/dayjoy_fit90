@@ -32,7 +32,6 @@ class ProgressScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final participant = ref.watch(participantProvider)!;
-    final TextTheme text = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context);
 
     // Server-generated weekly reports (mock-seeded until Firebase is on).

@@ -1,4 +1,5 @@
 node_modules/
-lib/
+# Compiled output only (anchored) — NOT functions/src/lib/ shared modules.
+/lib/
 *.log
 .env
